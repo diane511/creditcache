@@ -1,0 +1,80 @@
+.marquee,
+.marqueeReverse {
+  display: flex;
+  width: max-content;
+  gap: 0.75rem;
+  will-change: transform;
+}
+
+.marquee {
+  animation: marquee 32s linear infinite;
+}
+
+.marqueeReverse {
+  animation: marqueeReverse 40s linear infinite;
+}
+
+.partnerCard {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 15rem;
+  height: 6rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.partnerCard:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.partnerIcon {
+  width: 3.5rem;
+  height: 3.5rem;
+  flex: none;
+  overflow: visible;
+}
+
+.partnerName {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.partnerSubtitle {
+  margin-top: 0.25rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: rgba(228, 228, 231, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marqueeReverse {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
