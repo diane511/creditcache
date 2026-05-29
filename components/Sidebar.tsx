@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -11,41 +12,62 @@ type SidebarProps = {
   authMode?: AuthMode;
   signInHref?: string;
   signUpHref?: string;
+  profileHref?: string;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 };
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { label: "Opportunities", href: "/opportunities", icon: BriefcaseIcon },
-  { label: "Applications", href: "/applications", icon: FileIcon },
-  { label: "Vault", href: "/vault", icon: VaultIcon },
-  { label: "Scam Center", href: "/scam-center", icon: ShieldAlertIcon },
-  { label: "Resources", href: "/resources", icon: BookIcon },
-  { label: "Partner", href: "/partner", icon: UsersIcon },
-  { label: "Admin", href: "/admin", icon: SettingsIcon },
+type AuthMeUser = {
+  id: string;
+  displayName?: string | null;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string;
+  status?: string;
+  verified?: boolean;
+  avatarUrl?: string | null;
+};
+
+type NavItem = {
+  label: string;
+  href: string;
+  icon?: () => JSX.Element;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { label: "Home", href: "/dashboard", icon: DashboardIcon },
+  { label: "Payments", href: "/dashboard/payments", icon: VaultIcon },
+  { label: "History", href: "/dashboard/history", icon: FileIcon },
+  { label: "Security", href: "/dashboard/security", icon: ShieldAlertIcon },
+  { label: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
+  { label: "Applications", href: "/dashboard/applications", icon: BriefcaseIcon },
+  { label: "Actions", href: "/dashboard/actions", icon: UsersIcon },
 ] as const;
 
-const GUEST_ITEMS = [
+const GUEST_ITEMS: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "Opportunities", href: "/opportunities" },
   { label: "Scam Center", href: "/scam-center" },
 ] as const;
 
-function getHash() {
-  if (typeof window === "undefined") return "#overview";
-  return window.location.hash || "#overview";
-}
-
 function inferAuthModeFromPathname(pathname: string | null): AuthMode | null {
   if (!pathname) return null;
   const normalized = pathname.toLowerCase();
 
-  if (normalized.includes("sign-up") || normalized.includes("signup") || normalized.includes("register")) {
+  if (
+    normalized.includes("sign-up") ||
+    normalized.includes("signup") ||
+    normalized.includes("register")
+  ) {
     return "sign-up";
   }
 
-  if (normalized.includes("sign-in") || normalized.includes("signin") || normalized.includes("login")) {
+  if (
+    normalized.includes("sign-in") ||
+    normalized.includes("signin") ||
+    normalized.includes("login")
+  ) {
     return "sign-in";
   }
 
@@ -53,14 +75,29 @@ function inferAuthModeFromPathname(pathname: string | null): AuthMode | null {
 }
 
 function isActivePath(pathname: string, href: string) {
+  if (href === "/dashboard") {
+    return pathname === "/dashboard";
+  }
+
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 function DashboardIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
-      <path d="M4 11.5 12 4l8 7.5V20H4v-8.5Z" stroke="currentColor" strokeWidth="2.1" strokeLinejoin="round" />
-      <path d="M9 20v-6h6v6" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4 11.5 12 4l8 7.5V20H4v-8.5Z"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 20v-6h6v6"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -94,7 +131,13 @@ function FileIcon() {
         strokeWidth="2.1"
         strokeLinejoin="round"
       />
-      <path d="M14 3.5V9h5" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M14 3.5V9h5"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <path d="M9 13h6M9 16h6" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
     </svg>
   );
@@ -129,16 +172,20 @@ function ShieldAlertIcon() {
   );
 }
 
-function BookIcon() {
+function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
       <path
-        d="M6 4.5h10.5A2.5 2.5 0 0 1 19 7v12.5A1.5 1.5 0 0 0 17.5 18H6A2 2 0 0 1 4 16V6.5A2 2 0 0 1 6 4.5Z"
+        d="M10.5 4.5h3l.5 2a6.8 6.8 0 0 1 1.4.6l1.8-1.1 2.1 2.1-1.1 1.8c.25.46.45.93.6 1.4l2 .5v3l-2 .5c-.15.47-.35.94-.6 1.4l1.1 1.8-2.1 2.1-1.8-1.1c-.46.25-.93.45-1.4.6l-.5 2h-3l-.5-2a6.8 6.8 0 0 1-1.4-.6l-1.8 1.1-2.1-2.1 1.1-1.8a6.8 6.8 0 0 1-.6-1.4l-2-.5v-3l2-.5c.15-.47.35-.94.6-1.4L5.2 8.7l2.1-2.1 1.8 1.1c.46-.25.93-.45 1.4-.6l.5-2Z"
         stroke="currentColor"
-        strokeWidth="2.1"
+        strokeWidth="1.85"
         strokeLinejoin="round"
       />
-      <path d="M7.5 8h7M7.5 11h7M7.5 14h5" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+      <path
+        d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+        stroke="currentColor"
+        strokeWidth="2.1"
+      />
     </svg>
   );
 }
@@ -152,45 +199,94 @@ function UsersIcon() {
         strokeWidth="2.1"
         strokeLinecap="round"
       />
-      <path d="M15.5 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z" stroke="currentColor" strokeWidth="2.1" />
-      <path d="M19 19v-1a3 3 0 0 0-2.2-2.9M18 8.5a2 2 0 1 1 0 4" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M5 19v-1.5A3.5 3.5 0 0 1 8.5 14" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+      <path
+        d="M15.5 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z"
+        stroke="currentColor"
+        strokeWidth="2.1"
+      />
+      <path
+        d="M19 19v-1a3 3 0 0 0-2.2-2.9M18 8.5a2 2 0 1 1 0 4"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+      />
+      <path
+        d="M5 19v-1.5A3.5 3.5 0 0 1 8.5 14"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+      />
       <path d="M6.5 8.5a2 2 0 1 1 0 4" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
     </svg>
   );
 }
 
-function SettingsIcon() {
+function ProfileIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
-      <path
-        d="M10.5 4.5h3l.5 2a6.8 6.8 0 0 1 1.4.6l1.8-1.1 2.1 2.1-1.1 1.8c.25.46.45.93.6 1.4l2 .5v3l-2 .5c-.15.47-.35.94-.6 1.4l1.1 1.8-2.1 2.1-1.8-1.1c-.46.25-.93.45-1.4.6l-.5 2h-3l-.5-2a6.8 6.8 0 0 1-1.4-.6l-1.8 1.1-2.1-2.1 1.1-1.8a6.8 6.8 0 0 1-.6-1.4l-2-.5v-3l2-.5c.15-.47.35-.94.6-1.4L5.2 8.7l2.1-2.1 1.8 1.1c.46-.25.93-.45 1.4-.6l.5-2Z"
-        stroke="currentColor"
-        strokeWidth="1.85"
-        strokeLinejoin="round"
-      />
-      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" strokeWidth="2.1" />
+      <path d="M20 21a8 8 0 1 0-16 0" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+      <path d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" strokeWidth="2.1" />
     </svg>
   );
 }
 
 export function Sidebar({
   title = "CREDIT CACHE",
-  isAuthenticated = false,
+  isAuthenticated,
   authMode,
   signInHref = "/signin",
   signUpHref = "/signup",
+  profileHref = "/profile",
   mobileOpen = false,
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
-  const [activeHref, setActiveHref] = useState<string>(() => getHash());
+  const [sessionUser, setSessionUser] = useState<AuthMeUser | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   useEffect(() => {
-    const syncHash = () => setActiveHref(getHash());
-    syncHash();
-    window.addEventListener("hashchange", syncHash);
-    return () => window.removeEventListener("hashchange", syncHash);
+    let alive = true;
+
+    async function loadSession() {
+      try {
+        setSessionLoading(true);
+
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!alive) return;
+
+        if (!res.ok) {
+          setSessionUser(null);
+          return;
+        }
+
+        const data = (await res.json().catch(() => null)) as
+          | { user?: AuthMeUser | null }
+          | null;
+
+        setSessionUser(data?.user ?? null);
+      } catch {
+        if (alive) {
+          setSessionUser(null);
+        }
+      } finally {
+        if (alive) {
+          setSessionLoading(false);
+          setSessionChecked(true);
+        }
+      }
+    }
+
+    loadSession();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -206,11 +302,34 @@ export function Sidebar({
 
   const effectiveAuthMode = authMode ?? inferAuthModeFromPathname(pathname);
 
+  const resolvedLoggedIn =
+    sessionChecked ? Boolean(sessionUser) : Boolean(isAuthenticated);
+
+  const resolvedUserName =
+    sessionUser?.displayName?.trim() ||
+    sessionUser?.username?.trim() ||
+    sessionUser?.email?.split("@")[0]?.trim() ||
+    "Profile";
+
   const visibleItems = useMemo(() => {
-    return isAuthenticated ? NAV_ITEMS : GUEST_ITEMS;
-  }, [isAuthenticated]);
+    return resolvedLoggedIn ? NAV_ITEMS : GUEST_ITEMS;
+  }, [resolvedLoggedIn]);
 
   const closeMobile = () => onMobileClose?.();
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/sign-out", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+    } catch {
+      // fall through
+    } finally {
+      window.location.href = signInHref;
+    }
+  }
 
   return (
     <>
@@ -242,7 +361,7 @@ export function Sidebar({
                 {title}
               </div>
               <div className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
-                {isAuthenticated
+                {resolvedLoggedIn
                   ? "Your dashboard"
                   : effectiveAuthMode === "sign-up"
                     ? "Create your account"
@@ -262,19 +381,84 @@ export function Sidebar({
         </div>
 
         <div className="flex h-[calc(100vh-4rem)] flex-col p-4">
+          {resolvedLoggedIn ? (
+            <div className="mb-4 rounded-3xl border border-black/5 bg-zinc-950 p-4 text-white shadow-sm dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-zinc-950">
+                  <ProfileIcon />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/65">
+                    Signed in as
+                  </div>
+                  <div className="truncate text-sm font-semibold">
+                    {sessionLoading ? "Loading..." : resolvedUserName}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <Link
+                  href={profileHref}
+                  onClick={closeMobile}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
+                >
+                  <span className="inline-flex h-5 w-5 items-center justify-center">
+                    <ProfileIcon />
+                  </span>
+                  Profile
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 rounded-3xl border border-black/5 bg-zinc-50 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+                Access
+              </div>
+
+              <div className="mt-2 text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
+                {effectiveAuthMode === "sign-up"
+                  ? "Already have an account?"
+                  : "Need an account?"}
+              </div>
+
+              <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                {effectiveAuthMode === "sign-up"
+                  ? "Sign in to continue and access your dashboard."
+                  : "Create one to unlock your dashboard and private tools."}
+              </p>
+
+              <div className="mt-4 flex gap-2">
+                <a
+                  href={effectiveAuthMode === "sign-up" ? signInHref : signUpHref}
+                  onClick={closeMobile}
+                  className="inline-flex flex-1 items-center justify-center rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                >
+                  {effectiveAuthMode === "sign-up" ? "Sign in" : "Sign up"}
+                </a>
+              </div>
+            </div>
+          )}
+
           <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
             {visibleItems.map((item) => {
               const active = isActivePath(pathname, item.href);
 
               return (
-                <a
+                <Link
                   key={`${item.label}-${item.href}`}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  onClick={() => {
-                    setActiveHref(item.href);
-                    closeMobile();
-                  }}
+                  onClick={closeMobile}
                   className={[
                     "group flex items-center justify-between rounded-2xl border px-4 py-3.5 text-sm font-medium transition-all duration-200",
                     active
@@ -283,7 +467,7 @@ export function Sidebar({
                   ].join(" ")}
                 >
                   <span className="flex min-w-0 items-center gap-3">
-                    {"icon" in item ? <item.icon /> : null}
+                    {item.icon ? <item.icon /> : null}
                     <span className="min-w-0 truncate">{item.label}</span>
                   </span>
 
@@ -297,42 +481,10 @@ export function Sidebar({
                   >
                     →
                   </span>
-                </a>
+                </Link>
               );
             })}
           </nav>
-
-          <div className="mt-4 rounded-3xl border border-black/5 bg-zinc-50 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-              Access
-            </div>
-
-            <div className="mt-2 text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
-              {isAuthenticated
-                ? ""
-                : effectiveAuthMode === "sign-up"
-                  ? "Already have an account?"
-                  : "Need an account?"}
-            </div>
-
-            <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              {isAuthenticated
-                ? "Jump between sections without losing context."
-                : effectiveAuthMode === "sign-up"
-                  ? "Sign in to continue and access your dashboard."
-                  : "Create one to unlock your dashboard and private tools."}
-            </p>
-
-            {!isAuthenticated ? (
-              <a
-                href={effectiveAuthMode === "sign-up" ? signInHref : signUpHref}
-                onClick={closeMobile}
-                className="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
-              >
-                {effectiveAuthMode === "sign-up" ? "Sign in" : "Sign up"}
-              </a>
-            ) : null}
-          </div>
         </div>
       </aside>
     </>

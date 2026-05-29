@@ -1,13 +1,660 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  PENDING_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+  REVIEW
+}
+
+enum ApplicationStatus {
+  PENDING
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+}
+
+enum QueueItemStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+enum QueueEntityType {
+  USER
+  OPPORTUNITY
+  GUIDANCE
+  APPLICATION
+  WINNER
+  REPORT
+  VAULT_ITEM
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  PUBLISH
+  ARCHIVE
+  APPROVE
+  REJECT
+  ASSIGN_WINNER
+  SUSPEND
+  PROMOTE
+  DEMOTE
+  DELETE
+  UPLOAD
+  PAY
+  REFUND
+}
+
+enum EventTone {
+  PRIMARY
+  GOOD
+  WARN
+}
+
+enum LinkType {
+  WEBSITE
+  PORTFOLIO
+  LINKEDIN
+  X
+  GITHUB
+  INSTAGRAM
+  OTHER
+}
+
+enum PendingItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum CardStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+}
+
+enum PaymentMethodStatus {
+  ACTIVE
+  INACTIVE
+  COMING_SOON
+}
+
+enum VaultItemStatus {
+  SAVED
+  ARCHIVED
+  SHARED
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum AuthProvider {
+  GOOGLE
+  CREDIT_CACHE
+  CREDENTIALS
+}
+
+enum VerificationPurpose {
+  SIGN_UP
+  SIGN_IN
+  PASSWORD_RESET
+  EMAIL_VERIFY
+  PHONE_VERIFY
+}
+
+model User {
+  id String @id @default(cuid())
+
+  displayName  String
+  username     String  @unique
+  email        String  @unique
+  phone        String? @unique
+  passwordHash String
+
+  role       Role       @default(PENDING_ADMIN)
+  status     UserStatus @default(PENDING)
+  isApproved Boolean    @default(false)
+  verified   Boolean    @default(false)
+
+  emailVerifiedAt     DateTime?
+  phoneVerifiedAt     DateTime?
+  passwordUpdatedAt   DateTime?
+  lastLoginAt         DateTime?
+  lastActiveAt        DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  bio          String?
+  avatarUrl    String?
+  coverUrl     String?
+  dateOfBirth  DateTime?
+  location     String?
+  occupation   String?
+  company      String?
+  website      String?
+  portfolioUrl String?
+  linkedinUrl  String?
+  xUrl         String?
+
+  approvedById  String?
+  approvedBy    User?   @relation("UserApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedUsers User[]  @relation("UserApprovals")
+
+  authAccounts              AuthAccount[]
+  authSessions              AuthSession[]
+  verificationTokens        VerificationToken[]
+  createdOpportunities      Opportunity[]       @relation("OpportunityCreatedBy")
+  createdGuidancePosts      GuidancePost[]      @relation("GuidanceCreatedBy")
+  applications              Application[]
+  reviewedApplications      Application[]       @relation("ApplicationReviewedBy")
+  winnerAssignmentsGiven    WinnerAssignment[]  @relation("WinnerAssignedBy")
+  winnerAssignmentsReceived WinnerAssignment[]  @relation("WinnerUser")
+  reviewedQueueItems        ReviewQueueItem[]   @relation("QueueReviewedBy")
+  auditLogs                 AuditLog[]          @relation("AuditActor")
+  settingsUpdated           SiteSetting[]       @relation("SettingUpdatedBy")
+  metricSnapshots           MetricSnapshot[]    @relation("MetricRecordedBy")
+  activityEvents            ActivityEvent[]     @relation("ActivityActor")
+  socialLinks               SocialLink[]
+  workExperiences           WorkExperience[]
+  pendingItems              PendingItem[]
+  savedCards                SavedPaymentCard[]
+  vaultItems                VaultItem[]
+  reportsFiled              Report[]            @relation("ReportsFiled")
+  reportsResolved           Report[]            @relation("ReportsResolved")
+  paymentMethodsUpdated     PaymentMethod[]     @relation("PaymentMethodsUpdatedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role, status])
+  @@index([email])
+  @@index([username])
+  @@index([phone])
+}
+
+model AuthAccount {
+  id                String       @id @default(cuid())
+  userId            String
+  provider          AuthProvider
+  providerAccountId String
+
+  providerEmail String?
+  accessToken   String?
+  refreshToken  String?
+  idToken       String?
+  scope         String?
+  tokenType     String?
+  expiresAt     Int?
+  sessionState  String?
+  providerData  Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+}
+
+model AuthSession {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  deviceName   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model VerificationToken {
+  id         String              @id @default(cuid())
+  userId     String?
+  identifier String
+  token      String              @unique
+  purpose    VerificationPurpose
+  expiresAt  DateTime
+  consumedAt DateTime?
+  metadata   Json?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([identifier, purpose])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SocialLink {
+  id        String   @id @default(cuid())
+  userId    String
+  type      LinkType @default(OTHER)
+  label     String
+  url       String
+  sortOrder Int      @default(0)
+  isPublic  Boolean  @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+}
+
+model WorkExperience {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  company     String
+  location    String?
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  isCurrent   Boolean   @default(false)
+  sortOrder   Int       @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model PendingItem {
+  id        String            @id @default(cuid())
+  userId    String
+  label     String
+  status    PendingItemStatus @default(PENDING)
+  note      String
+  sortOrder Int               @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model SavedPaymentCard {
+  id        String     @id @default(cuid())
+  userId    String
+  brand     String
+  last4     String
+  type      String
+  expiry    String
+  status    CardStatus @default(ACTIVE)
+  isDefault Boolean    @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model PaymentMethod {
+  id        String              @id @default(cuid())
+  name      String
+  note      String
+  status    PaymentMethodStatus @default(ACTIVE)
+  sortOrder Int                 @default(0)
+
+  updatedById String?
+  updatedBy   User?   @relation("PaymentMethodsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model VaultItem {
+  id        String          @id @default(cuid())
+  userId    String
+  title     String
+  note      String?
+  fileUrl   String
+  fileName  String
+  fileType  String?
+  status    VaultItemStatus @default(SAVED)
+  sortOrder Int             @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Opportunity {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  title        String
+  summary      String
+  body         String?
+  category     String
+  amount       String?
+  deadline     DateTime?
+  status       ContentStatus @default(DRAFT)
+  isVerified   Boolean       @default(false)
+  featured     Boolean       @default(false)
+  publishedAt  DateTime?
+  scheduledFor DateTime?
+
+  createdById String
+  createdBy   User   @relation("OpportunityCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  winnerAssignment WinnerAssignment?
+  images           OpportunityImage[]
+  tags             OpportunityTag[]
+  applications     Application[]
+  queueItems       ReviewQueueItem[]  @relation("OpportunityQueueItems")
+  metricSnapshots  MetricSnapshot[]   @relation("OpportunityMetricSnapshots")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([deadline])
+  @@index([createdById])
+}
+
+model GuidancePost {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  title        String
+  category     String
+  excerpt      String
+  body         String
+  readTime     String?
+  status       ContentStatus @default(DRAFT)
+  featured     Boolean       @default(false)
+  publishedAt  DateTime?
+  scheduledFor DateTime?
+
+  createdById String
+  createdBy   User   @relation("GuidanceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  images          GuidanceImage[]
+  tags            GuidanceTag[]
+  queueItems      ReviewQueueItem[] @relation("GuidanceQueueItems")
+  metricSnapshots MetricSnapshot[]  @relation("GuidanceMetricSnapshots")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([createdById])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  opportunityTags OpportunityTag[]
+  guidanceTags    GuidanceTag[]
+}
+
+model OpportunityTag {
+  id            String @id @default(cuid())
+  opportunityId String
+  tagId         String
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityId, tagId])
+  @@index([tagId])
+}
+
+model GuidanceTag {
+  id         String @id @default(cuid())
+  guidanceId String
+  tagId      String
+
+  guidance GuidancePost @relation(fields: [guidanceId], references: [id], onDelete: Cascade)
+  tag      Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([guidanceId, tagId])
+  @@index([tagId])
+}
+
+model OpportunityImage {
+  id            String  @id @default(cuid())
+  opportunityId String
+  url           String
+  alt           String?
+  sortOrder     Int     @default(0)
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+}
+
+model GuidanceImage {
+  id         String  @id @default(cuid())
+  guidanceId String
+  url        String
+  alt        String?
+  sortOrder  Int     @default(0)
+
+  guidance GuidancePost @relation(fields: [guidanceId], references: [id], onDelete: Cascade)
+
+  @@index([guidanceId])
+}
+
+model Application {
+  id            String            @id @default(cuid())
+  opportunityId String
+  userId        String
+  status        ApplicationStatus @default(PENDING)
+  coverNote     String?
+  portfolioUrl  String?
+  reviewNote    String?
+  reviewedById  String?
+  submittedAt   DateTime          @default(now())
+  reviewedAt    DateTime?
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy  User?       @relation("ApplicationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([opportunityId, userId])
+  @@index([status])
+  @@index([opportunityId])
+  @@index([userId])
+}
+
+model WinnerAssignment {
+  id            String   @id @default(cuid())
+  opportunityId String   @unique
+  userId        String
+  assignedById  String
+  notes         String?
+  assignedAt    DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user        User        @relation("WinnerUser", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy  User        @relation("WinnerAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([assignedById])
+}
+
+model ReviewQueueItem {
+  id         String          @id @default(cuid())
+  entityType QueueEntityType
+  entityId   String
+  title      String
+  details    String?
+  status     QueueItemStatus @default(OPEN)
+  priority   Int             @default(0)
+  count      Int             @default(1)
+
+  opportunityId String?
+  opportunity   Opportunity? @relation("OpportunityQueueItems", fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  guidanceId String?
+  guidance   GuidancePost? @relation("GuidanceQueueItems", fields: [guidanceId], references: [id], onDelete: SetNull)
+
+  reviewedById String?
+  reviewedBy   User?   @relation("QueueReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  reports Report[]
+
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([priority])
+  @@index([opportunityId])
+  @@index([guidanceId])
+}
+
+model Report {
+  id      String       @id @default(cuid())
+  title   String
+  details String
+  status  ReportStatus @default(OPEN)
+
+  filedById String?
+  filedBy   User?   @relation("ReportsFiled", fields: [filedById], references: [id], onDelete: SetNull)
+
+  resolvedById String?
+  resolvedBy   User?   @relation("ReportsResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  queueItemId String?
+  queueItem   ReviewQueueItem? @relation(fields: [queueItemId], references: [id], onDelete: SetNull)
+
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([status])
+  @@index([filedById])
+  @@index([resolvedById])
+  @@index([queueItemId])
+}
+
+model AuditLog {
+  id      String  @id @default(cuid())
+  actorId String?
+  actor   User?   @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  action     AuditAction
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
+
+model SiteSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedById String?
+  updatedBy   User?    @relation("SettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
+}
+
+model MetricSnapshot {
+  id           String  @id @default(cuid())
+  key          String
+  label        String
+  value        Float
+  unit         String?
+  recordedById String?
+  recordedBy   User?   @relation("MetricRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  opportunityId String?
+  opportunity   Opportunity? @relation("OpportunityMetricSnapshots", fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  guidanceId String?
+  guidance   GuidancePost? @relation("GuidanceMetricSnapshots", fields: [guidanceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key, createdAt])
+  @@index([recordedById])
+  @@index([opportunityId])
+  @@index([guidanceId])
+}
+
+model ActivityEvent {
+  id          String    @id @default(cuid())
+  title       String
+  meta        String
+  tone        EventTone @default(PRIMARY)
+  type        String
+  entityType  String
+  entityId    String?
+  value       Float?
+  metadata    Json?
+  createdById String?
+  createdBy   User?     @relation("ActivityActor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdById])
 }

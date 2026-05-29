@@ -1,17 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getUserFromSession } from "@/lib/auth";
 
-export async function GET() {
-  const isLoggedIn = false;
+export const runtime = "nodejs";
 
-  if (!isLoggedIn) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+export async function GET(request: NextRequest) {
+  const user = await getUserFromSession(request);
+
+  if (!user) {
+    return NextResponse.json({ user: null }, { status: 401 });
   }
 
   return NextResponse.json({
-    authenticated: true,
     user: {
-      id: "user_1",
-      email: "member@example.com",
+      id: user.id,
+      displayName: user.displayName,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      verified: user.verified,
+      avatarUrl: user.avatarUrl,
     },
   });
 }

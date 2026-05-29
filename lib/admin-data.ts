@@ -1,4 +1,3 @@
-// lib/admin-data.ts
 import { db } from "@/lib/db";
 
 export type AdminOpportunity = {
@@ -195,18 +194,34 @@ export async function getAdminDashboardData() {
   );
 
   const [opportunitiesRaw, guidanceRaw, usersRaw, queueRaw] = await Promise.all([
-    safeFindMany(opportunityDelegate, {
-      orderBy: { createdAt: "desc" },
-    }, "opportunities"),
-    safeFindMany(guidanceDelegate, {
-      orderBy: { createdAt: "desc" },
-    }, "guidance posts"),
-    safeFindMany(userDelegate, {
-      orderBy: { createdAt: "desc" },
-    }, "users"),
-    safeFindMany(queueDelegate, {
-      orderBy: { createdAt: "desc" },
-    }, "queue items"),
+    safeFindMany(
+      opportunityDelegate,
+      {
+        orderBy: { createdAt: "desc" },
+      },
+      "opportunities",
+    ),
+    safeFindMany(
+      guidanceDelegate,
+      {
+        orderBy: { createdAt: "desc" },
+      },
+      "guidance posts",
+    ),
+    safeFindMany(
+      userDelegate,
+      {
+        orderBy: { createdAt: "desc" },
+      },
+      "users",
+    ),
+    safeFindMany(
+      queueDelegate,
+      {
+        orderBy: { createdAt: "desc" },
+      },
+      "queue items",
+    ),
   ]);
 
   const opportunities = opportunitiesRaw.map(mapOpportunity);

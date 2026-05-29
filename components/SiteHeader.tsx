@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
-      <path d="M4 8h16M4 16h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path
+        d="M4 8h16M4 16h16"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -35,7 +40,12 @@ function SearchIcon() {
 function ProfileIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
-      <path d="M20 21a8 8 0 1 0-16 0" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+      <path
+        d="M20 21a8 8 0 1 0-16 0"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+      />
       <path d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" strokeWidth="2.1" />
     </svg>
   );
@@ -48,12 +58,26 @@ type SiteHeaderProps = {
   userName?: string;
 };
 
+type AuthMeUser = {
+  id: string;
+  displayName?: string | null;
+  username?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+  verified?: boolean;
+  role?: string;
+  status?: string;
+};
+
 export function SiteHeader({
-  isLoggedIn = false,
+  isLoggedIn,
   onMenuClick,
   profileHref = "/profile",
   userName = "Guest",
 }: SiteHeaderProps) {
+  const [sessionUser, setSessionUser] = useState<AuthMeUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
   useEffect(() => {
     document.body.style.overflow = "";
 
@@ -62,11 +86,67 @@ export function SiteHeader({
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+
+    async function loadMe() {
+      try {
+        setLoadingUser(true);
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!alive) return;
+
+        if (!res.ok) {
+          setSessionUser(null);
+          return;
+        }
+
+        const data = (await res.json().catch(() => null)) as
+          | { user?: AuthMeUser | null }
+          | null;
+
+        setSessionUser(data?.user ?? null);
+      } catch {
+        if (alive) setSessionUser(null);
+      } finally {
+        if (alive) setLoadingUser(false);
+      }
+    }
+
+    loadMe();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const resolvedLoggedIn = isLoggedIn ?? Boolean(sessionUser);
+  const resolvedName = useMemo(() => {
+    if (!resolvedLoggedIn) return "Guest";
+
+    return (
+      sessionUser?.displayName?.trim() ||
+      sessionUser?.username?.trim() ||
+      sessionUser?.email?.split("@")[0]?.trim() ||
+      userName ||
+      "Profile"
+    );
+  }, [resolvedLoggedIn, sessionUser, userName]);
+
+  const profileLabel = useMemo(() => {
+    if (!resolvedLoggedIn) return "Guest";
+    return sessionUser?.username?.trim() || sessionUser?.displayName?.trim() || "Profile";
+  }, [resolvedLoggedIn, sessionUser]);
+
   return (
     <header
       className={[
         "fixed top-0 left-0 right-0 z-50 h-16 backdrop-blur-xl",
-        isLoggedIn
+        resolvedLoggedIn
           ? "bg-white/85 dark:bg-zinc-950/85 lg:left-[300px]"
           : "bg-white/95 dark:bg-zinc-950/95",
       ].join(" ")}
@@ -88,11 +168,11 @@ export function SiteHeader({
 
           <div className="min-w-0">
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-              {isLoggedIn ? "CREDIT CACHE" : "Public access"}
+              {resolvedLoggedIn ? "CREDIT CACHE" : "Public access"}
             </div>
 
             <div className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
-              {isLoggedIn
+              {resolvedLoggedIn
                 ? "Your Future Fully Funded"
                 : "Explore opportunities safely"}
             </div>
@@ -100,7 +180,7 @@ export function SiteHeader({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {!isLoggedIn && (
+          {!resolvedLoggedIn && (
             <>
               <Link
                 href="/signin"
@@ -119,17 +199,21 @@ export function SiteHeader({
           )}
 
           <Link
-            href={isLoggedIn ? profileHref : "/signin"}
-            aria-label="Profile"
+            href={resolvedLoggedIn ? profileHref : "/signin"}
+            aria-label={resolvedLoggedIn ? `Profile for ${resolvedName}` : "Profile"}
             className="inline-flex h-10 items-center gap-2 rounded-full border border-black/5 bg-white px-3.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
-              <ProfileIcon />
+            <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-zinc-950 px-2 text-white dark:bg-white dark:text-zinc-950">
+              {resolvedLoggedIn ? (
+                <span className="text-xs font-semibold uppercase tracking-wide">
+                  {loadingUser ? "…" : "Profile"}
+                </span>
+              ) : (
+                <ProfileIcon />
+              )}
             </span>
 
-            <span className="hidden sm:inline">
-              {isLoggedIn ? userName : "Guest"}
-            </span>
+            <span className="hidden sm:inline">{resolvedName}</span>
           </Link>
 
           <button

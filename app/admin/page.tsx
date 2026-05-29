@@ -1,9 +1,17 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { getAdminDashboardData } from "@/lib/admin-data";
 import { AdminDashboard } from "./AdminDashboard";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  const user = await getCurrentUser();
+
+  if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+    redirect("/admin/login?next=/admin");
+  }
+
   const data = await getAdminDashboardData();
 
   return (
