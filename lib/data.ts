@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 
 export type Opportunity = {
   id: string;
+  slug: string;
   title: string;
   amount: string;
   category: string;
@@ -10,15 +11,8 @@ export type Opportunity = {
   verified: boolean;
 };
 
-export type AdminOpportunity = {
-  id: string;
-  title: string;
-  amount: string;
-  category: string;
-  deadline: string;
+export type AdminOpportunity = Opportunity & {
   status: string;
-  summary: string;
-  verified: boolean;
   winnerName: string | null;
 };
 
@@ -63,6 +57,11 @@ export type VaultRecord = {
 
 type RawRecord = Record<string, any>;
 
+export type ApplicationRecord = RawRecord;
+export type BlogPost = RawRecord;
+export type PartnerPackage = RawRecord;
+export type ScamReport = VaultRecord;
+
 type FindManyDelegate = {
   findMany: (args?: any) => Promise<RawRecord[]>;
 };
@@ -97,6 +96,17 @@ function toStringValue(value: unknown, fallback = ""): string {
   return String(value);
 }
 
+function toSlugValue(value: unknown, fallback = ""): string {
+  const base = toStringValue(value, fallback).trim().toLowerCase();
+
+  return (
+    base
+      .replace(/['’]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "opportunity"
+  );
+}
+
 function formatDateValue(value: unknown): string {
   if (!value) return "—";
 
@@ -121,9 +131,12 @@ function toNumber(value: unknown, fallback = 0): number {
 }
 
 function mapPublicOpportunity(record: RawRecord): Opportunity {
+  const title = toStringValue(record.title ?? record.name, "Untitled opportunity");
+
   return {
     id: toStringValue(record.id),
-    title: toStringValue(record.title ?? record.name, "Untitled opportunity"),
+    slug: toSlugValue(record.slug ?? record.handle ?? record.id ?? title, title),
+    title,
     amount: toStringValue(
       record.amount ??
         record.prizeAmount ??
@@ -208,6 +221,10 @@ function mapVaultRecord(record: RawRecord): VaultRecord {
   };
 }
 
+function mapScamReport(record: RawRecord): ScamReport {
+  return mapVaultRecord(record);
+}
+
 async function loadOpportunityRecords(): Promise<RawRecord[]> {
   const opportunityDelegate = pickDelegate(
     (db as any).opportunity,
@@ -220,6 +237,25 @@ async function loadOpportunityRecords(): Promise<RawRecord[]> {
       orderBy: { createdAt: "desc" },
     },
     "opportunities",
+  );
+}
+
+async function loadScamReportRecords(): Promise<RawRecord[]> {
+  const scamReportDelegate = pickDelegate(
+    (db as any).scamReport,
+    (db as any).scamReports,
+    (db as any).report,
+    (db as any).reports,
+    (db as any).fraudReport,
+    (db as any).fraudReports,
+  );
+
+  return safeFindMany(
+    scamReportDelegate,
+    {
+      orderBy: { createdAt: "desc" },
+    },
+    "scam reports",
   );
 }
 
@@ -240,13 +276,76 @@ async function loadVaultRecords(): Promise<RawRecord[]> {
   );
 }
 
+async function loadGenericRecords(
+  delegateNames: string[],
+  label: string,
+): Promise<RawRecord[]> {
+  const delegate = pickDelegate(...delegateNames.map((name) => (db as any)[name]));
+
+  return safeFindMany(
+    delegate,
+    {
+      orderBy: { createdAt: "desc" },
+    },
+    label,
+  );
+}
+
 export const opportunities: Opportunity[] = (await loadOpportunityRecords()).map(
   mapPublicOpportunity,
+);
+
+export const scamReports: ScamReport[] = (await loadScamReportRecords()).map(
+  mapScamReport,
+);
+
+export const applications: ApplicationRecord[] = await loadGenericRecords(
+  ["application", "applications", "applicationRecord", "applicationRecords"],
+  "applications",
+);
+
+export const blogPosts: BlogPost[] = await loadGenericRecords(
+  ["blogPost", "blogPosts", "post", "posts"],
+  "blog posts",
+);
+
+export const partnerPackages: PartnerPackage[] = await loadGenericRecords(
+  ["partnerPackage", "partnerPackages", "package", "packages"],
+  "partner packages",
 );
 
 export const vaultRecords: VaultRecord[] = (await loadVaultRecords()).map(
   mapVaultRecord,
 );
+
+export function getOpportunityBySlug(slug: string): Opportunity | undefined {
+  const target = toSlugValue(slug);
+  return opportunities.find((opportunity) => {
+    return toSlugValue(opportunity.slug) === target || toSlugValue(opportunity.id) === target;
+  });
+}
+
+export function relatedOpportunities(slug: string, limit = 3): Opportunity[] {
+  const current = getOpportunityBySlug(slug);
+  const currentSlug = current ? current.slug : toSlugValue(slug);
+
+  const ordered = [
+    ...opportunities.filter((opportunity) => opportunity.slug !== currentSlug),
+  ];
+
+  if (current) {
+    const sameCategory = ordered.filter(
+      (opportunity) => opportunity.category === current.category,
+    );
+    const otherCategory = ordered.filter(
+      (opportunity) => opportunity.category !== current.category,
+    );
+
+    return [...sameCategory, ...otherCategory].slice(0, limit);
+  }
+
+  return ordered.slice(0, limit);
+}
 
 export async function getAdminDashboardData() {
   const opportunityDelegate = pickDelegate(

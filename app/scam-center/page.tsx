@@ -1,6 +1,6 @@
-import { PageHeader } from "@/main/components/PageHeader";
-import { ScamCenterClient } from "@/main/components/ScamCenterClient";
-import { scamReports } from "@/main/lib/data";
+import { PageHeader } from "@/components/PageHeader";
+import { ScamCenterClient } from "@/components/ScamCenterClient";
+import { scamReports } from "@/lib/data";
 
 export default function ScamCenterPage() {
   return (
