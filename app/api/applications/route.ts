@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { applications as seedApplications, opportunities } from "@/main/lib/data";
-import type { ApplicationRecord } from "@/main/lib/types";
-import { readJson, writeJson } from "@/main/lib/storage";
+import { applications as seedApplications, opportunities } from "@/lib/data";
+import type { ApplicationRecord } from "@/lib/types";
+import { readJson, writeJson } from "@/lib/storage";
 
 export async function GET() {
   const items = await readJson<ApplicationRecord[]>("applications.json", seedApplications);

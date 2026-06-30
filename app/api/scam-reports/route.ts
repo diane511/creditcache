@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { scamReports as seedReports } from "@/main/lib/data";
-import type { ScamReport } from "@/main/lib/types";
-import { readJson, writeJson } from "@/main/lib/storage";
+import { scamReports as seedReports } from "@/lib/data";
+import type { ScamReport } from "@/lib/types";
+import { readJson, writeJson } from "@/lib/storage";
 
 export async function GET() {
   const items = await readJson<ScamReport[]>("scam-reports.json", seedReports);

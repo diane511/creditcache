@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { vaultRecords as seedVault } from "@/main/lib/data";
-import type { VaultRecord } from "@/main/lib/types";
-import { readJson, writeJson } from "@/main/lib/storage";
+import { vaultRecords as seedVault } from "@/lib/data";
+import type { VaultRecord } from "@/lib/types";
+import { readJson, writeJson } from "@/lib/storage";
 
 export async function GET() {
   const items = await readJson<VaultRecord[]>("documents.json", seedVault);
