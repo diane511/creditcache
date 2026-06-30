@@ -43,7 +43,12 @@ type NotificationItem = {
 
 type ApplicationItem = Record<string, unknown>;
 type OpportunityItem = Record<string, unknown>;
-type ScamReportItem = {
+
+type ScamReport = {
+  id: string;
+  topic: string;
+  channel: string;
+  description: string;
   status?: string;
   [key: string]: unknown;
 };
@@ -58,7 +63,7 @@ type DashboardSectionPageProps = {
   settingsRows?: SettingRow[];
   applications?: ApplicationItem[];
   opportunities?: OpportunityItem[];
-  scamReports?: ScamReportItem[];
+  scamReports?: ScamReport[];
   notifications?: NotificationItem[];
 };
 
