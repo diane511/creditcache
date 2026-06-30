@@ -4,13 +4,13 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
 }
 
 enum Role {
   SUPER_ADMIN
   ADMIN
   PENDING_ADMIN
+  USER
 }
 
 enum UserStatus {
@@ -67,6 +67,7 @@ enum AuditAction {
   UPLOAD
   PAY
   REFUND
+  TRANSFER
 }
 
 enum EventTone {
@@ -130,16 +131,34 @@ enum VerificationPurpose {
   PHONE_VERIFY
 }
 
+enum CreditTransferPurpose {
+  WINNING
+  SWEEPSTAKE
+  SCHOLARSHIP
+  SPONSORSHIP
+  FUNDING
+  NORMAL_TRANSFER
+}
+
+enum CreditTransferStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
 model User {
   id String @id @default(cuid())
 
-  displayName  String
-  username     String  @unique
-  email        String  @unique
-  phone        String? @unique
-  passwordHash String
+  legalName          String?
+  displayName        String
+  username           String  @unique
+  email              String  @unique
+  phone              String? @unique
+  passwordHash       String
+  onboardingComplete Boolean @default(false)
 
-  role       Role       @default(PENDING_ADMIN)
+  role       Role       @default(USER)
   status     UserStatus @default(PENDING)
   isApproved Boolean    @default(false)
   verified   Boolean    @default(false)
@@ -149,7 +168,7 @@ model User {
   passwordUpdatedAt   DateTime?
   lastLoginAt         DateTime?
   lastActiveAt        DateTime?
-  failedLoginAttempts Int       @default(0)
+  failedLoginAttempts Int      @default(0)
   lockedUntil         DateTime?
 
   bio          String?
@@ -164,17 +183,25 @@ model User {
   linkedinUrl  String?
   xUrl         String?
 
+  creditBalance Int @default(0)
+
   approvedById  String?
-  approvedBy    User?   @relation("UserApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
-  approvedUsers User[]  @relation("UserApprovals")
+  approvedBy    User?  @relation("UserApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedUsers User[] @relation("UserApprovals")
+
+  invitedByAdminId String?
+  invitedByAdmin   User?  @relation("UserInvites", fields: [invitedByAdminId], references: [id], onDelete: SetNull)
+  invitedUsers     User[] @relation("UserInvites")
+
+  adminSignupLinksCreated AdminSignupLink[] @relation("AdminSignupLinksCreated")
 
   authAccounts              AuthAccount[]
   authSessions              AuthSession[]
   verificationTokens        VerificationToken[]
-  createdOpportunities      Opportunity[]       @relation("OpportunityCreatedBy")
+  createdOpportunities      Opportunity[]      @relation("OpportunityCreatedBy")
   createdGuidancePosts      GuidancePost[]      @relation("GuidanceCreatedBy")
   applications              Application[]
-  reviewedApplications      Application[]       @relation("ApplicationReviewedBy")
+  reviewedApplications      Application[]      @relation("ApplicationReviewedBy")
   winnerAssignmentsGiven    WinnerAssignment[]  @relation("WinnerAssignedBy")
   winnerAssignmentsReceived WinnerAssignment[]  @relation("WinnerUser")
   reviewedQueueItems        ReviewQueueItem[]   @relation("QueueReviewedBy")
@@ -189,7 +216,12 @@ model User {
   vaultItems                VaultItem[]
   reportsFiled              Report[]            @relation("ReportsFiled")
   reportsResolved           Report[]            @relation("ReportsResolved")
-  paymentMethodsUpdated     PaymentMethod[]     @relation("PaymentMethodsUpdatedBy")
+  paymentMethodsUpdated     PaymentMethod[]      @relation("PaymentMethodsUpdatedBy")
+
+  creditTopUps              CreditTopUp[]
+  sentCreditTransfers       CreditTransfer[]     @relation("CreditTransferSender")
+  receivedCreditTransfers   CreditTransfer[]     @relation("CreditTransferRecipient")
+  createdCreditTransfers    CreditTransfer[]     @relation("CreditTransferCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -198,6 +230,28 @@ model User {
   @@index([email])
   @@index([username])
   @@index([phone])
+  @@index([creditBalance])
+  @@index([invitedByAdminId])
+}
+
+model AdminSignupLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  label     String?
+  active    Boolean  @default(true)
+  maxUses   Int?
+  usedCount Int      @default(0)
+  lastUsedAt DateTime?
+  expiresAt DateTime?
+
+  createdById String
+  createdBy   User     @relation("AdminSignupLinksCreated", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdById])
+  @@index([active, expiresAt])
 }
 
 model AuthAccount {
@@ -582,7 +636,7 @@ model Report {
 
   resolvedAt DateTime?
   createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  updatedAt  DateTime @updatedAt
 
   @@index([status])
   @@index([filedById])
@@ -657,4 +711,67 @@ model ActivityEvent {
   @@index([type, createdAt])
   @@index([entityType, entityId])
   @@index([createdById])
+}
+
+model CreditTopUp {
+  id                    String   @id @default(cuid())
+  txRef                 String   @unique
+  providerTransactionId String?
+
+  userId      String
+  email       String
+  label       String
+  mode        String
+  amountNgn   Int
+  creditedUsd Int
+
+  currency       String   @default("NGN")
+  status         String   @default("pending")
+  providerStatus String?
+  verifiedAt     DateTime?
+  creditedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model CreditTransfer {
+  id String @id @default(cuid())
+
+  txRef String @unique
+
+  senderId String
+  sender   User @relation("CreditTransferSender", fields: [senderId], references: [id], onDelete: Restrict)
+
+  recipientId String
+  recipient   User @relation("CreditTransferRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  purpose CreditTransferPurpose
+  status  CreditTransferStatus @default(COMPLETED)
+
+  amountCents Int
+  note        String?
+
+  senderLookup    String
+  recipientLookup String
+
+  createdById String?
+  createdBy   User? @relation("CreditTransferCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  completedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([purpose])
+  @@index([status])
+  @@index([createdAt])
 }

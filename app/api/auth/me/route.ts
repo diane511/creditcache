@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ user: null }, { status: 401 });
   }
 
+  const creditBalanceCents = user.creditBalance ?? 0;
+
   return NextResponse.json({
     user: {
       id: user.id,
@@ -21,6 +23,8 @@ export async function GET(request: NextRequest) {
       status: user.status,
       verified: user.verified,
       avatarUrl: user.avatarUrl,
+      creditBalance: creditBalanceCents,
+      creditBalanceCents,
     },
   });
 }

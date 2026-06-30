@@ -1,26 +1,189 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff;
+  --foreground: #111111;
+  --muted: #6b7280;
+  --border: rgba(0, 0, 0, 0.08);
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-strong: rgba(255, 255, 255, 0.92);
+  --ring: rgba(17, 17, 17, 0.18);
+
+  --accent: #4f46e5;
+  --accent-soft: rgba(79, 70, 229, 0.12);
+
+  --font-body: var(--font-geist-sans);
+  --font-code: var(--font-geist-mono);
+
+  --title-weight: 700;
+  --title-letter-spacing: -0.02em;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-code);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #000;
+    --foreground: #f5f5f5;
+    --muted: #a1a1aa;
+    --border: rgba(255, 255, 255, 0.1);
+    --surface: rgba(255, 255, 255, 0.04);
+    --surface-strong: rgba(255, 255, 255, 0.06);
+    --ring: rgba(255, 255, 255, 0.22);
+
+    --accent: #818cf8;
+    --accent-soft: rgba(129, 140, 248, 0.16);
   }
 }
 
-body {
+/* Device-specific font stacks */
+html[data-platform="ios"] {
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", var(--font-geist-sans), sans-serif;
+  --title-weight: 800;
+  --title-letter-spacing: -0.03em;
+}
+
+html[data-platform="android"] {
+  --font-body: Roboto, "Noto Sans", "Segoe UI", var(--font-geist-sans), sans-serif;
+  --title-weight: 700;
+  --title-letter-spacing: -0.01em;
+}
+
+html[data-platform="other"] {
+  --font-body: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --title-weight: 700;
+  --title-letter-spacing: -0.02em;
+}
+
+html {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color-scheme: light dark;
+  scroll-behavior: smooth;
+  font-family: var(--font-body);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  background-color: transparent;
+  color: inherit;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Make titles heavier across the app */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.page-title,
+.section-title {
+  font-family: var(--font-body);
+  font-weight: var(--title-weight) !important;
+  letter-spacing: var(--title-letter-spacing);
+  line-height: 1.1;
+  font-synthesis-weight: none;
+}
+
+/* Optional helper surfaces */
+.surface {
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+}
+
+.surface-strong {
+  background: var(--surface-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+}
+
+/* Slight platform polish */
+html[data-platform="ios"] button,
+html[data-platform="ios"] a {
+  touch-action: manipulation;
+}
+
+html[data-platform="android"] {
+  letter-spacing: 0.01em;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-code), ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

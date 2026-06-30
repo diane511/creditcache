@@ -1,226 +1,67 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 
-type AuthMode = "signin" | "signup";
-type SignInMethod = "email" | "phone";
-
-type SignInFormProps = {
-  nextPath?: string;
-  variant?: "page" | "modal";
-  open?: boolean;
-  onClose?: () => void;
-  mode?: AuthMode;
-  defaultMode?: AuthMode;
-  onModeChange?: (mode: AuthMode) => void;
-};
-
-const DISPOSABLE_EMAIL_DOMAINS = new Set([
-  "10minutemail.com",
-  "10minutemail.net",
-  "10minutemail.org",
-  "mailinator.com",
-  "guerrillamail.com",
-  "yopmail.com",
-  "trashmail.com",
-  "tempmail.com",
-  "temp-mail.org",
-  "getnada.com",
-  "moakt.com",
-  "sharklasers.com",
-  "mintemail.com",
-  "maildrop.cc",
-  "dispostable.com",
-  "fakeinbox.com",
-  "emailondeck.com",
-  "mailnesia.com",
-  "throwawaymail.com",
-  "sharklasers.com",
-]);
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
-      <path
-        fill="currentColor"
-        d="M21.35 11.1H12v2.95h5.36c-.23 1.43-1.47 4.19-5.36 4.19-3.23 0-5.86-2.68-5.86-5.98S8.77 6.28 12 6.28c1.84 0 3.07.78 3.78 1.45l2.58-2.48C16.7 4.1 14.63 3 12 3 6.92 3 2.78 7.14 2.78 12.22S6.92 21.44 12 21.44c6.66 0 9.05-4.67 9.05-7.98 0-.54-.06-.96-.15-1.36z"
-      />
-    </svg>
-  );
-}
-
-function PhoneIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
-      <path
-        fill="currentColor"
-        d="M6.6 10.79a15.2 15.2 0 0 0 6.61 6.61l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.95 21 3 13.05 3 3.99a1 1 0 0 1 1-1h3.47a1 1 0 0 1 1 1c0 1.24.2 2.45.57 3.57a1 1 0 0 1-.24 1.02l-2.2 2.2z"
-      />
-    </svg>
-  );
-}
-
-function EmailIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
-      <path
-        fill="currentColor"
-        d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v.4l8 5.33 8-5.33V7H4zm16 10V9.1l-7.45 4.97a1 1 0 0 1-1.1 0L4 9.1V17h16z"
-      />
-    </svg>
-  );
-}
-
-function EyeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
-      <path
-        fill="currentColor"
-        d="M12 5c5.5 0 9.7 4 10.8 6.5a1.3 1.3 0 0 1 0 1C21.7 15 17.5 19 12 19S2.3 15 1.2 12.5a1.3 1.3 0 0 1 0-1C2.3 9 6.5 5 12 5Zm0 2C8 7 4.7 9.8 3.6 12c1.1 2.2 4.4 5 8.4 5s7.3-2.8 8.4-5C19.3 9.8 16 7 12 7Zm0 1.8A3.2 3.2 0 1 1 12 15a3.2 3.2 0 0 1 0-6.2Zm0 2A1.2 1.2 0 1 0 12 13a1.2 1.2 0 0 0 0-2.4Z"
-      />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
-      <path
-        fill="currentColor"
-        d="M3.7 2.3 2.3 3.7l3 3C3.1 8.4 1.8 10.3 1.2 12.5a1.3 1.3 0 0 0 0 1C2.3 16 6.5 20 12 20c2 0 3.8-.4 5.4-1.2l2.9 2.9 1.4-1.4L3.7 2.3Zm8.3 15.7c-4 0-7.3-2.8-8.4-5 .5-1 1.3-2.2 2.4-3.2l2 2a3.2 3.2 0 0 0 4.2 4.2l1.7 1.7c-.6.2-1.2.3-1.9.3Zm.7-5.2a1.2 1.2 0 0 1-1.5-1.5l1.5 1.5Zm9.3-5.8C20.7 8 16.6 4 12 4c-1.1 0-2.2.2-3.2.5l1.7 1.7A6.8 6.8 0 0 1 12 6c4 0 7.3 2.8 8.4 5-.4.8-1 1.7-1.8 2.5l1.4 1.4c1.1-1.2 1.8-2.4 2-3.4a1.3 1.3 0 0 0 0-1ZM12 8.8a3.2 3.2 0 0 1 3.2 3.2c0 .4-.1.8-.2 1.1l-4.1-4.1c.3-.1.7-.2 1.1-.2Z"
-      />
-    </svg>
-  );
-}
-
-function ErrorIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
-      <path
-        fill="currentColor"
-        d="M12 2 1 21h22L12 2Zm0 6a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9a1 1 0 0 1 1-1Zm0 10.2a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z"
-      />
-    </svg>
-  );
-}
-
-function normalizePhoneValue(value: string) {
-  return value.trim().replace(/[^\d+()\s-]/g, "");
-}
-
-function countDigits(value: string) {
-  return (value.match(/\d/g) ?? []).length;
-}
-
-function isValidEmail(email: string) {
-  const value = email.trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
-}
-
-function getEmailDomain(email: string) {
-  return email.trim().toLowerCase().split("@")[1] ?? "";
-}
-
-function isDisposableEmail(email: string) {
-  const domain = getEmailDomain(email);
-  if (!domain) return false;
-
-  for (const disposableDomain of DISPOSABLE_EMAIL_DOMAINS) {
-    if (domain === disposableDomain || domain.endsWith(`.${disposableDomain}`)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function isProbablyPhone(value: string) {
-  const digits = countDigits(value);
-  return digits >= 8 && digits <= 15;
-}
-
-function normalizeAuthError(message?: string) {
-  const raw = (message ?? "Authentication failed").trim();
-  const lower = raw.toLowerCase();
-
-  if (
-    lower.includes("verify your email") ||
-    lower.includes("email not verified") ||
-    lower.includes("account not verified") ||
-    lower.includes("email verification") ||
-    lower.includes("please verify your email") ||
-    lower.includes("confirm your email")
-  ) {
-    return "The email/phone or password is incorrect.";
-  }
-
-  if (
-    (lower.includes("phone") || lower.includes("mobile")) &&
-    (lower.includes("already") ||
-      lower.includes("exists") ||
-      lower.includes("taken") ||
-      lower.includes("used"))
-  ) {
-    return "That phone number is already in use. Try another one.";
-  }
-
-  if (
-    lower.includes("email") &&
-    (lower.includes("already") ||
-      lower.includes("exists") ||
-      lower.includes("taken") ||
-      lower.includes("used"))
-  ) {
-    return "That email address is already in use. Try another one.";
-  }
-
-  if (
-    lower.includes("temporary") ||
-    lower.includes("disposable") ||
-    lower.includes("throwaway") ||
-    lower.includes("temp mail")
-  ) {
-    return "Temporary email addresses are not allowed. Please use a real inbox.";
-  }
-
-  if (lower.includes("invalid credentials") || lower.includes("wrong password")) {
-    return "The email/phone or password is incorrect.";
-  }
-
-  if (lower.includes("password") && lower.includes("weak")) {
-    return "Your password is too weak. Use at least 8 characters with upper and lower case letters and a number.";
-  }
-
-  return raw;
-}
+import { GoogleIcon, PhoneIcon, EmailIcon, EyeIcon, EyeOffIcon, ErrorIcon } from "./sign-in-form.icons";
+import { ModernPhoneField } from "./sign-in-form.phone-field";
+import {
+  DEFAULT_COUNTRY,
+  type AuthMode,
+  type ApiErrorResponse,
+  type SignInFormProps,
+  type SignInMethod,
+  buildInternationalPhone,
+  detectCountryFromIp,
+  friendlyModeLabel,
+  isDisposableEmail,
+  isProbablyPhone,
+  isValidEmail,
+  mapAuthErrors,
+  normalizeAuthError,
+} from "./sign-in-form.utils";
 
 export function SignInForm({
   nextPath = "/dashboard",
+  inviteToken,
   variant = "page",
   open = true,
   onClose,
   mode,
   defaultMode = "signin",
   onModeChange,
+  notice = null,
 }: SignInFormProps) {
   const router = useRouter();
+
   const [internalMode, setInternalMode] = useState<AuthMode>(defaultMode);
   const [method, setMethod] = useState<SignInMethod>("email");
 
   const [identifier, setIdentifier] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
+  const [signinPhoneCountry, setSigninPhoneCountry] = useState<string>(DEFAULT_COUNTRY);
+  const [signupPhoneCountry, setSignupPhoneCountry] = useState<string>(DEFAULT_COUNTRY);
+
+  const signinCountryTouchedRef = useRef(false);
+  const signupCountryTouchedRef = useRef(false);
+  const didResolveCountryRef = useRef(false);
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
+
+  const [isPending, startTransition] = useTransition();
 
   const currentMode = mode ?? internalMode;
 
@@ -230,6 +71,64 @@ export function SignInForm({
     }
     onModeChange?.(nextMode);
     setErrors([]);
+    setSuccessMessage(null);
+    setVerificationNotice(null);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+  useEffect(() => {
+    if (variant === "modal" && !open) {
+      setErrors([]);
+      setSuccessMessage(null);
+      setVerificationNotice(null);
+    }
+  }, [variant, open]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (didResolveCountryRef.current) return;
+    didResolveCountryRef.current = true;
+
+    async function resolveDefaultCountry() {
+      const detectedCountry = await detectCountryFromIp();
+      if (cancelled || !detectedCountry) return;
+
+      if (!signinCountryTouchedRef.current) {
+        setSigninPhoneCountry(detectedCountry);
+      }
+
+      if (!signupCountryTouchedRef.current) {
+        setSignupPhoneCountry(detectedCountry);
+      }
+    }
+
+    void resolveDefaultCountry();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const disclaimerText = useMemo(() => {
+    if (currentMode === "signin") {
+      return method === "email"
+        ? "Use your verified email and password to continue."
+        : "Pick a country, then enter your phone number to continue.";
+    }
+
+    return "New accounts will receive a welcome message and an email verification step before dashboard access.";
+  }, [currentMode, method]);
+
+  const handleSigninCountryChange = (nextCountryIso2: string) => {
+    signinCountryTouchedRef.current = true;
+    setSigninPhoneCountry(nextCountryIso2);
+  };
+
+  const handleSignupCountryChange = (nextCountryIso2: string) => {
+    signupCountryTouchedRef.current = true;
+    setSignupPhoneCountry(nextCountryIso2);
   };
 
   if (variant === "modal" && !open) return null;
@@ -241,11 +140,7 @@ export function SignInForm({
       const value = identifier.trim();
 
       if (!value) {
-        nextErrors.push(
-          method === "email"
-            ? "Please enter your email address."
-            : "Please enter your phone number."
-        );
+        nextErrors.push(method === "email" ? "Please enter your email address." : "Please enter your phone number.");
       } else if (method === "email") {
         if (!isValidEmail(value)) {
           nextErrors.push("Please enter a valid email address, like name@example.com.");
@@ -256,8 +151,6 @@ export function SignInForm({
 
       if (!password.trim()) {
         nextErrors.push("Please enter your password.");
-      } else if (password.length < 8) {
-        nextErrors.push("Password must be at least 8 characters long.");
       }
     }
 
@@ -309,10 +202,54 @@ export function SignInForm({
     return nextErrors;
   }
 
+  function extractVerificationDestination(data: ApiErrorResponse | null, email: string) {
+    if (data?.verifyUrl) return data.verifyUrl;
+    if (data?.redirectTo) return data.redirectTo;
+    return `/auth/verify-email?email=${encodeURIComponent(email)}`;
+  }
+
+  async function handleResendVerification() {
+    const email = verificationEmail || (currentMode === "signup" ? signupEmail.trim() : identifier.trim());
+    if (!email) {
+      setErrors(["Enter your email first so we can resend the verification code."]);
+      return;
+    }
+
+    setResending(true);
+    setErrors([]);
+    setSuccessMessage(null);
+    setVerificationNotice(null);
+
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = (await res.json().catch(() => null)) as ApiErrorResponse | null;
+
+      if (!res.ok || data?.success === false) {
+        setErrors(mapAuthErrors(data, "We could not resend the verification email."));
+        return;
+      }
+
+      setVerificationEmail(email);
+      setVerificationNotice(data?.message || "Verification email sent.");
+    } catch {
+      setErrors(["We could not resend the verification email."]);
+    } finally {
+      setResending(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setErrors([]);
+    setSuccessMessage(null);
+    setVerificationNotice(null);
 
     try {
       const validationErrors = validateBeforeSubmit();
@@ -322,19 +259,27 @@ export function SignInForm({
       }
 
       const endpoint =
-        currentMode === "signin" ? "/api/auth/signin" : "/api/auth/signup";
+        currentMode === "signin"
+          ? "/api/auth/signin"
+          : `/api/auth/signup${inviteToken ? `?invite=${encodeURIComponent(inviteToken)}` : ""}`;
 
       const payload =
         currentMode === "signin"
           ? {
               method,
-              identifier: identifier.trim(),
+              identifier:
+                method === "phone" ? buildInternationalPhone(identifier, signinPhoneCountry) : identifier.trim(),
+              phoneCountry: method === "phone" ? signinPhoneCountry : undefined,
               password,
+              nextPath,
             }
           : {
               email: signupEmail.trim(),
-              phone: normalizePhoneValue(signupPhone),
+              phone: buildInternationalPhone(signupPhone, signupPhoneCountry),
+              phoneCountry: signupPhoneCountry,
               password,
+              nextPath,
+              inviteToken,
             };
 
       const res = await fetch(endpoint, {
@@ -344,22 +289,73 @@ export function SignInForm({
         body: JSON.stringify(payload),
       });
 
-      const data = (await res.json().catch(() => null)) as {
-        message?: string;
-        verifyUrl?: string;
-      } | null;
+      const data = (await res.json().catch(() => null)) as ApiErrorResponse | null;
 
-      if (!res.ok) {
-        throw new Error(normalizeAuthError(data?.message));
-      }
+      if (!res.ok || data?.success === false) {
+        const apiCode = data?.code ?? "";
 
-      if (currentMode === "signup" && data?.verifyUrl) {
-        router.replace(data.verifyUrl);
-        router.refresh();
+        if (
+          data?.requiresVerification ||
+          apiCode === "EMAIL_NOT_VERIFIED" ||
+          apiCode === "UNVERIFIED_ACCOUNT" ||
+          apiCode === "VERIFICATION_REQUIRED"
+        ) {
+          const emailForVerify =
+            currentMode === "signup"
+              ? signupEmail.trim()
+              : data?.email || identifier.trim();
+
+          setVerificationEmail(emailForVerify);
+          setVerificationNotice(data?.message || "Your account needs verification. Check your inbox to continue.");
+
+          const verifyDestination = extractVerificationDestination(data, emailForVerify);
+          startTransition(() => {
+            router.replace(verifyDestination);
+          });
+          return;
+        }
+
+        setErrors(
+          mapAuthErrors(
+            data,
+            res.status >= 500 ? "Something went wrong. Please try again." : "Authentication failed",
+          ),
+        );
         return;
       }
 
-      window.location.href = nextPath;
+      if (currentMode === "signup") {
+        const emailForVerify = signupEmail.trim();
+        setVerificationEmail(emailForVerify);
+        setSuccessMessage(
+          data?.message || "Welcome to Credit Cache. Check your inbox to verify your email and continue.",
+        );
+
+        const verifyDestination = extractVerificationDestination(data, emailForVerify);
+        startTransition(() => {
+          router.replace(verifyDestination);
+        });
+        return;
+      }
+
+      const destination = data?.redirectTo || nextPath;
+
+      if (data?.requiresVerification) {
+        const emailForVerify = data.email || identifier.trim();
+        setVerificationEmail(emailForVerify);
+        setVerificationNotice(data.message || "Your account needs verification. Check your inbox to continue.");
+
+        startTransition(() => {
+          router.replace(extractVerificationDestination(data, emailForVerify));
+        });
+        return;
+      }
+
+      setSuccessMessage(data?.message || "Signed in successfully.");
+      startTransition(() => {
+        router.replace(destination);
+        router.refresh();
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Authentication failed";
       setErrors([normalizeAuthError(message)]);
@@ -368,390 +364,339 @@ export function SignInForm({
     }
   }
 
-  if (variant === "modal") {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 px-4 py-4 backdrop-blur-sm">
-        <div className="relative w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-white shadow-2xl dark:bg-zinc-950">
-          {onClose ? (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close sign in form"
-              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-white/10"
-            >
-              ×
-            </button>
-          ) : null}
-
-          <AuthContent
-            nextPath={nextPath}
-            mode={currentMode}
-            setMode={updateMode}
-            method={method}
-            setMethod={setMethod}
-            identifier={identifier}
-            setIdentifier={setIdentifier}
-            signupEmail={signupEmail}
-            setSignupEmail={setSignupEmail}
-            signupPhone={signupPhone}
-            setSignupPhone={setSignupPhone}
-            password={password}
-            setPassword={setPassword}
-            confirmPassword={confirmPassword}
-            setConfirmPassword={setConfirmPassword}
-            showPassword={showPassword}
-            setShowPassword={setShowPassword}
-            showConfirmPassword={showConfirmPassword}
-            setShowConfirmPassword={setShowConfirmPassword}
-            loading={loading}
-            errors={errors}
-            handleSubmit={handleSubmit}
-          />
-        </div>
-      </div>
-    );
-  }
+  const busy = loading || isPending || resending;
 
   return (
     <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-10">
-      <AuthContent
-        nextPath={nextPath}
-        mode={currentMode}
-        setMode={updateMode}
-        method={method}
-        setMethod={setMethod}
-        identifier={identifier}
-        setIdentifier={setIdentifier}
-        signupEmail={signupEmail}
-        setSignupEmail={setSignupEmail}
-        signupPhone={signupPhone}
-        setSignupPhone={setSignupPhone}
-        password={password}
-        setPassword={setPassword}
-        confirmPassword={confirmPassword}
-        setConfirmPassword={setConfirmPassword}
-        showPassword={showPassword}
-        setShowPassword={setShowPassword}
-        showConfirmPassword={showConfirmPassword}
-        setShowConfirmPassword={setShowConfirmPassword}
-        loading={loading}
-        errors={errors}
-        handleSubmit={handleSubmit}
-      />
-    </div>
-  );
-}
-
-type AuthContentProps = {
-  nextPath: string;
-  mode: AuthMode;
-  setMode: (mode: AuthMode) => void;
-  method: SignInMethod;
-  setMethod: (mode: SignInMethod) => void;
-  identifier: string;
-  setIdentifier: (value: string) => void;
-  signupEmail: string;
-  setSignupEmail: (value: string) => void;
-  signupPhone: string;
-  setSignupPhone: (value: string) => void;
-  password: string;
-  setPassword: (value: string) => void;
-  confirmPassword: string;
-  setConfirmPassword: (value: string) => void;
-  showPassword: boolean;
-  setShowPassword: (value: boolean) => void;
-  showConfirmPassword: boolean;
-  setShowConfirmPassword: (value: boolean) => void;
-  loading: boolean;
-  errors: string[];
-  handleSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>;
-};
-
-function AuthContent({
-  nextPath,
-  mode,
-  setMode,
-  method,
-  setMethod,
-  identifier,
-  setIdentifier,
-  signupEmail,
-  setSignupEmail,
-  signupPhone,
-  setSignupPhone,
-  password,
-  setPassword,
-  confirmPassword,
-  setConfirmPassword,
-  showPassword,
-  setShowPassword,
-  showConfirmPassword,
-  setShowConfirmPassword,
-  loading,
-  errors,
-  handleSubmit,
-}: AuthContentProps) {
-  const identifierLabel = method === "email" ? "Email" : "Phone number";
-  const identifierType = method === "email" ? "email" : "tel";
-  const identifierAutoComplete = method === "email" ? "email" : "tel";
-
-  return (
-    <div className="w-full">
-      <div className="border-b border-zinc-200 px-6 py-5 dark:border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-white/10 dark:bg-white/10">
-            <Image
-              src="/cc.jpg"
-              alt="Credit Cache logo"
-              width={48}
-              height={48}
-              className="h-10 w-10 object-cover"
-              priority
-            />
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-              Credit Cache
-            </p>
-            <h1 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white">
-              {mode === "signin" ? "Sign in" : "Create account"}
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="p-6">
-        <div className="space-y-3">
-          <Link
-            href={`/auth/google?next=${encodeURIComponent(nextPath)}`}
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-zinc-200 bg-zinc-50 px-5 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </Link>
-
-          <Link
-            href={`/auth/credit-cache?next=${encodeURIComponent(nextPath)}`}
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-zinc-200 bg-zinc-50 px-5 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-          >
-            <Image
-              src="/cc.jpg"
-              alt=""
-              width={20}
-              height={20}
-              className="h-5 w-5 rounded-full object-cover"
-            />
-            Continue with Credit Cache
-          </Link>
-        </div>
-
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
-            or
-          </span>
-          <div className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
-        </div>
-
-        {mode === "signin" ? (
-          <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-zinc-100 p-1 dark:bg-white/5">
-            <button
-              type="button"
-              onClick={() => setMethod("email")}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                method === "email"
-                  ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400"
-              }`}
-            >
-              <EmailIcon />
-              Email
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMethod("phone")}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                method === "phone"
-                  ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400"
-              }`}
-            >
-              <PhoneIcon />
-              Phone
-            </button>
-          </div>
-        ) : null}
-
-        <div className="space-y-4">
-          {mode === "signin" ? (
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                {identifierLabel}
-              </span>
-              <input
-                type={identifierType}
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                autoComplete={identifierAutoComplete}
-                autoCapitalize="none"
-                spellCheck={false}
-                placeholder={method === "email" ? "name@example.com" : "+1 555 000 0000"}
-                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
-                required
+      <div className="w-full overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-white/5">
+        <div className="border-b border-zinc-200 px-6 py-5 dark:border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-white/10 dark:bg-white/10">
+              <Image
+                src="/cc.jpg"
+                alt="Credit Cache logo"
+                width={48}
+                height={48}
+                className="h-10 w-10 object-cover"
+                priority
               />
-            </label>
-          ) : (
-            <>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Email
-                </span>
-                <input
-                  type="email"
-                  value={signupEmail}
-                  onChange={(e) => setSignupEmail(e.target.value)}
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  placeholder="name@example.com"
-                  className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
-                  required
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Phone number
-                </span>
-                <input
-                  type="tel"
-                  value={signupPhone}
-                  onChange={(e) => setSignupPhone(e.target.value)}
-                  autoComplete="tel"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  placeholder="+1 555 000 0000"
-                  className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
-                  required
-                />
-              </label>
-            </>
-          )}
-
-          <label className="block">
-            <div className="mb-1 flex items-center justify-between gap-3">
-              <span className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Password
-              </span>
-
-              <Link
-                href={`/auth/forgot-password?next=${encodeURIComponent(nextPath)}`}
-                className="text-xs font-medium text-zinc-500 transition hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
-              >
-                Forgot password?
-              </Link>
             </div>
 
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 pr-12 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
-                required
-              />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+                Credit Cache
+              </p>
+              <h1 className="truncate text-xl font-black tracking-tight text-zinc-950 dark:text-white">
+                {friendlyModeLabel(currentMode)}
+              </h1>
+            </div>
+
+            {variant === "modal" && onClose ? (
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white"
+                onClick={onClose}
+                className="ml-auto rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="Close"
               >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+                  <path
+                    d="M6 6l12 12M18 6l-12 12"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6">
+          {notice ? (
+            <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+              {notice}
+            </div>
+          ) : null}
+
+          <div className="space-y-3">
+            <Link
+              href={`/auth/google?next=${encodeURIComponent(nextPath)}`}
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-zinc-200 bg-zinc-50 px-5 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </Link>
+
+            <Link
+              href={`/auth/credit-cache?next=${encodeURIComponent(nextPath)}`}
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-zinc-200 bg-zinc-50 px-5 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              <Image
+                src="/cc.jpg"
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5 rounded-full object-cover"
+              />
+              Continue with Credit Cache
+            </Link>
+          </div>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
+            <span className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+              or
+            </span>
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
+          </div>
+
+          {currentMode === "signin" ? (
+            <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-zinc-100 p-1 dark:bg-white/5">
+              <button
+                type="button"
+                onClick={() => setMethod("email")}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  method === "email"
+                    ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-white"
+                    : "text-zinc-600 dark:text-zinc-400"
+                }`}
+              >
+                <EmailIcon />
+                Email
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMethod("phone")}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  method === "phone"
+                    ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-white"
+                    : "text-zinc-600 dark:text-zinc-400"
+                }`}
+              >
+                <PhoneIcon />
+                Phone
               </button>
             </div>
-          </label>
+          ) : null}
 
-          {mode === "signup" ? (
+          <div className="space-y-4">
+            {currentMode === "signin" ? (
+              method === "email" ? (
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Email
+                  </span>
+                  <input
+                    type="email"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder="name@example.com"
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
+                    required
+                  />
+                </label>
+              ) : (
+                <ModernPhoneField
+                  label="Phone number"
+                  digits={identifier}
+                  onDigitsChange={setIdentifier}
+                  countryIso2={signinPhoneCountry}
+                  onCountryChange={(nextCountryIso2) => {
+                    signinCountryTouchedRef.current = true;
+                    setSigninPhoneCountry(nextCountryIso2);
+                  }}
+                  placeholder="201 555 0123"
+                  autoComplete="tel-national"
+                  required
+                 
+                />
+              )
+            ) : (
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Email
+                  </span>
+                  <input
+                    type="email"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder="name@example.com"
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
+                    required
+                  />
+                </label>
+
+                <ModernPhoneField
+                  label="Phone number"
+                  digits={signupPhone}
+                  onDigitsChange={setSignupPhone}
+                  countryIso2={signupPhoneCountry}
+                  onCountryChange={(nextCountryIso2) => {
+                    signupCountryTouchedRef.current = true;
+                    setSignupPhoneCountry(nextCountryIso2);
+                  }}
+                  placeholder="201 555 0123"
+                  autoComplete="tel-national"
+                  required
+                 
+                />
+              </>
+            )}
+
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Confirm password
-              </span>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <span className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Password
+                </span>
+
+                <Link
+                  href={`/auth/forgot-password?next=${encodeURIComponent(nextPath)}`}
+                  className="text-xs font-medium text-zinc-500 transition hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
               <div className="relative">
                 <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  autoComplete="new-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={currentMode === "signin" ? "current-password" : "new-password"}
                   className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 pr-12 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
                   required
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  aria-label={
-                    showConfirmPassword ? "Hide confirm password" : "Show confirm password"
-                  }
-                  aria-pressed={showConfirmPassword}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
             </label>
-          ) : null}
-        </div>
 
-        {errors.length ? (
-          <div
-            role="alert"
-            aria-live="polite"
-            className="mt-4 rounded-3xl border border-red-200/70 bg-red-50/90 p-4 shadow-sm backdrop-blur dark:border-red-500/20 dark:bg-red-500/10"
-          >
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-200">
-                <ErrorIcon />
-              </div>
+            {currentMode === "signup" ? (
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Confirm password
+                </span>
 
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-red-900 dark:text-red-100">
-                  Please fix the following
-                </p>
-                <ul className="mt-2 space-y-1 text-sm leading-6 text-red-800 dark:text-red-100/90">
-                  {errors.map((item, index) => (
-                    <li key={`${item}-${index}`} className="flex gap-2">
-                      <span className="mt-[2px] text-red-500 dark:text-red-200">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 pr-12 text-zinc-950 outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-zinc-950/40 dark:text-white"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    aria-pressed={showConfirmPassword}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white"
+                  >
+                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+              </label>
+            ) : null}
+          </div>
+
+          {errors.length ? (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mt-4 rounded-3xl border border-red-200/70 bg-red-50/90 p-4 shadow-sm backdrop-blur dark:border-red-500/20 dark:bg-red-500/10"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-200">
+                  <ErrorIcon />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-red-900 dark:text-red-100">
+                    Please fix the following
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm leading-6 text-red-800 dark:text-red-100/90">
+                    {errors.map((item, index) => (
+                      <li key={`${item}-${index}`} className="flex gap-2">
+                        <span className="mt-[2px] text-red-500 dark:text-red-200">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
-        >
-          {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
-        </button>
+          {successMessage ? (
+            <div className="mt-4 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+              {successMessage}
+            </div>
+          ) : null}
 
-        <button
-          type="button"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="mt-4 w-full text-sm font-medium text-zinc-600 transition hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
-        >
-          {mode === "signin"
-            ? "Need an account? Create one"
-            : "Already have an account? Sign in"}
-        </button>
-      </form>
+          {verificationNotice ? (
+            <div className="mt-4 rounded-3xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+              {verificationNotice}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={busy}
+                  className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-zinc-950 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-950 dark:text-white"
+                >
+                  {resending ? "Resending..." : "Resend verification email"}
+                </button>
+                {verificationEmail ? (
+                  <Link
+                    href={`/auth/verify-email?email=${encodeURIComponent(verificationEmail)}`}
+                    className="rounded-full border border-blue-200 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/20 dark:text-blue-200 dark:hover:bg-blue-500/10"
+                  >
+                    Open verification page
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+          >
+            {busy ? "Please wait..." : currentMode === "signin" ? "Sign in" : "Create account"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => updateMode(currentMode === "signin" ? "signup" : "signin")}
+            disabled={busy}
+            className="mt-4 w-full text-sm font-medium text-zinc-600 transition hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-400 dark:hover:text-white"
+          >
+            {currentMode === "signin"
+              ? "Need an account? Create one"
+              : "Already have an account? Sign in"}
+          </button>
+
+          <p className="mt-4 text-center text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            {disclaimerText}
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

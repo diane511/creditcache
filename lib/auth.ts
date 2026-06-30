@@ -1,13 +1,17 @@
+import "server-only";
+
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+import { Prisma, type Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import {
-  SESSION_COOKIE,
-  SESSION_DAYS,
-  isProduction,
-} from "@/lib/session";
+import { SESSION_COOKIE, SESSION_DAYS, isProduction } from "@/lib/session";
 import { addDays, hashToken } from "@/lib/tokens";
+
+export type AdminScopeViewer = {
+  id: string;
+  role?: Role | string | null;
+};
 
 export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -49,6 +53,44 @@ export function slugifyUsername(value: string) {
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.+|\.+$/g, "")
     .replace(/\.+/g, ".");
+}
+
+export function isSuperAdminRole(role: Role | string | null | undefined) {
+  return role === "SUPER_ADMIN";
+}
+
+export function isAdminRole(role: Role | string | null | undefined) {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
+export function canManageAllUsers(viewer?: AdminScopeViewer) {
+  return Boolean(viewer && isSuperAdminRole(viewer.role));
+}
+
+export function buildManagedUserWhere(
+  viewer?: AdminScopeViewer,
+): Prisma.UserWhereInput {
+  if (!viewer) return {};
+  if (isSuperAdminRole(viewer.role)) return {};
+  if (isAdminRole(viewer.role)) {
+    return {
+      invitedByAdminId: viewer.id,
+    };
+  }
+
+  return {
+    id: viewer.id,
+  };
+}
+
+export function canAccessManagedUser(
+  viewer: AdminScopeViewer | null | undefined,
+  target: { id: string; invitedByAdminId: string | null },
+) {
+  if (!viewer) return false;
+  if (isSuperAdminRole(viewer.role)) return true;
+  if (isAdminRole(viewer.role)) return target.invitedByAdminId === viewer.id;
+  return target.id === viewer.id;
 }
 
 export async function uniqueUsername(base: string) {

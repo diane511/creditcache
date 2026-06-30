@@ -35,7 +35,12 @@ type NavItem = {
   icon?: () => JSX.Element;
 };
 
-const NAV_ITEMS: NavItem[] = [
+type NavSection = {
+  heading: string;
+  items: NavItem[];
+};
+
+const DASHBOARD_ITEMS: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: DashboardIcon },
   { label: "Payments", href: "/dashboard/payments", icon: VaultIcon },
   { label: "History", href: "/dashboard/history", icon: FileIcon },
@@ -43,13 +48,25 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
   { label: "Applications", href: "/dashboard/applications", icon: BriefcaseIcon },
   { label: "Actions", href: "/dashboard/actions", icon: UsersIcon },
-] as const;
+];
 
 const GUEST_ITEMS: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "Opportunities", href: "/opportunities" },
   { label: "Scam Center", href: "/scam-center" },
-] as const;
+];
+
+const ADMIN_ITEMS: NavItem[] = [
+  { label: "Overview", href: "/admin", icon: DashboardIcon },
+  { label: "Metrics", href: "/admin/metrics", icon: UsersIcon },
+  { label: "Publish", href: "/admin/publish", icon: BriefcaseIcon },
+  { label: "Opportunities", href: "/admin/opportunities", icon: VaultIcon },
+  { label: "Guidance", href: "/admin/guidance", icon: FileIcon },
+  { label: "Users", href: "/admin/users", icon: ProfileIcon },
+  { label: "Winner", href: "/admin/winner", icon: ShieldAlertIcon },
+  { label: "Queue", href: "/admin/queue", icon: SettingsIcon },
+  { label: "Super admin", href: "/admin/super-admin", icon: UsersIcon },
+];
 
 function inferAuthModeFromPathname(pathname: string | null): AuthMode | null {
   if (!pathname) return null;
@@ -74,11 +91,17 @@ function inferAuthModeFromPathname(pathname: string | null): AuthMode | null {
   return null;
 }
 
-function isActivePath(pathname: string, href: string) {
-  if (href === "/dashboard") {
-    return pathname === "/dashboard";
-  }
+function isAdminRole(role?: string | null) {
+  return role === "ADMIN" || role === "SUPER_ADMIN";
+}
 
+function isDashboardActive(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === "/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isAdminLinkActive(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -234,13 +257,14 @@ export function Sidebar({
   title = "CREDIT CACHE",
   isAuthenticated,
   authMode,
-  signInHref = "/signin",
-  signUpHref = "/signup",
+  signInHref,
+  signUpHref,
   profileHref = "/profile",
   mobileOpen = false,
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
+
   const [sessionUser, setSessionUser] = useState<AuthMeUser | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -271,9 +295,7 @@ export function Sidebar({
 
         setSessionUser(data?.user ?? null);
       } catch {
-        if (alive) {
-          setSessionUser(null);
-        }
+        if (alive) setSessionUser(null);
       } finally {
         if (alive) {
           setSessionLoading(false);
@@ -301,6 +323,8 @@ export function Sidebar({
   }, [mobileOpen, onMobileClose]);
 
   const effectiveAuthMode = authMode ?? inferAuthModeFromPathname(pathname);
+  const isAdminArea = pathname.startsWith("/admin");
+  const isAdminUser = Boolean(sessionUser && isAdminRole(sessionUser.role));
 
   const resolvedLoggedIn =
     sessionChecked ? Boolean(sessionUser) : Boolean(isAuthenticated);
@@ -311,9 +335,26 @@ export function Sidebar({
     sessionUser?.email?.split("@")[0]?.trim() ||
     "Profile";
 
-  const visibleItems = useMemo(() => {
-    return resolvedLoggedIn ? NAV_ITEMS : GUEST_ITEMS;
-  }, [resolvedLoggedIn]);
+  const effectiveSignInHref =
+    signInHref ?? (isAdminArea ? "/admin/ops-7c3a/signin" : "/signin");
+
+  const effectiveSignUpHref =
+    signUpHref ?? (isAdminArea ? "/admin/ops-7c3a/signup" : "/signup");
+
+  const visibleSections = useMemo<NavSection[]>(() => {
+    if (!resolvedLoggedIn) {
+      return [{ heading: "Explore", items: GUEST_ITEMS }];
+    }
+
+    if (isAdminArea && isAdminUser) {
+      return [
+        { heading: "Admin workspace", items: ADMIN_ITEMS },
+        { heading: "Workspace", items: DASHBOARD_ITEMS },
+      ];
+    }
+
+    return [{ heading: "Workspace", items: DASHBOARD_ITEMS }];
+  }, [resolvedLoggedIn, isAdminArea, isAdminUser]);
 
   const closeMobile = () => onMobileClose?.();
 
@@ -325,9 +366,9 @@ export function Sidebar({
         cache: "no-store",
       });
     } catch {
-      // fall through
+      // ignore
     } finally {
-      window.location.href = signInHref;
+      window.location.href = effectiveSignInHref;
     }
   }
 
@@ -344,7 +385,7 @@ export function Sidebar({
 
       <aside
         className={[
-          "fixed left-0 top-0 z-50 h-screen w-[300px] bg-white/95 backdrop-blur-xl dark:bg-zinc-950/95",
+          "fixed left-0 top-0 z-50 h-screen w-[320px] border-r border-black/5 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-zinc-950/95",
           "transition-transform duration-300 ease-out",
           "lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
@@ -357,14 +398,14 @@ export function Sidebar({
             </div>
 
             <div className="min-w-0">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+              <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400">
                 {title}
               </div>
               <div className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
                 {resolvedLoggedIn
-                  ? "Your dashboard"
+                  ? "Workspace"
                   : effectiveAuthMode === "sign-up"
-                    ? "Create your account"
+                    ? "Create account"
                     : "Global Funding"}
               </div>
             </div>
@@ -380,111 +421,113 @@ export function Sidebar({
           </button>
         </div>
 
-        <div className="flex h-[calc(100vh-4rem)] flex-col p-4">
-          {resolvedLoggedIn ? (
-            <div className="mb-4 rounded-3xl border border-black/5 bg-zinc-950 p-4 text-white shadow-sm dark:border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-zinc-950">
-                  <ProfileIcon />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/65">
-                    Signed in as
+        <div className="flex h-[calc(100vh-4rem)] min-h-0 flex-col px-4 pb-4">
+          <nav className="mt-2 flex-1 overflow-y-auto pr-1">
+            <div className="space-y-5">
+              {visibleSections.map((section) => (
+                <section key={section.heading}>
+                  <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400">
+                    {section.heading}
                   </div>
-                  <div className="truncate text-sm font-semibold">
-                    {sessionLoading ? "Loading..." : resolvedUserName}
+
+                  <div className="space-y-1">
+                    {section.items.map((item) => {
+                      const active = item.href.startsWith("/admin")
+                        ? isAdminLinkActive(pathname, item.href)
+                        : isDashboardActive(pathname, item.href);
+
+                      return (
+                        <Link
+                          key={`${item.label}-${item.href}`}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          onClick={closeMobile}
+                          className={[
+                            "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                            active
+                              ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950"
+                              : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/8 dark:hover:text-white",
+                          ].join(" ")}
+                        >
+                          {item.icon ? (
+                            <span
+                              className={[
+                                "inline-flex h-8 w-8 items-center justify-center rounded-lg",
+                                active
+                                  ? "bg-white/10 text-white dark:bg-zinc-950 dark:text-zinc-950"
+                                  : "bg-zinc-100 text-zinc-500 dark:bg-white/5 dark:text-zinc-400",
+                              ].join(" ")}
+                            >
+                              <item.icon />
+                            </span>
+                          ) : null}
+
+                          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+
+                          <span
+                            className={[
+                              "text-xs transition",
+                              active ? "text-white/80" : "text-zinc-400 group-hover:text-zinc-500",
+                            ].join(" ")}
+                          >
+                            →
+                          </span>
+                        </Link>
+                      );
+                    })}
                   </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <Link
-                  href={profileHref}
-                  onClick={closeMobile}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
-                >
-                  <span className="inline-flex h-5 w-5 items-center justify-center">
-                    <ProfileIcon />
-                  </span>
-                  Profile
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="inline-flex items-center justify-center rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  Logout
-                </button>
-              </div>
+                </section>
+              ))}
             </div>
-          ) : (
-            <div className="mb-4 rounded-3xl border border-black/5 bg-zinc-50 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-                Access
-              </div>
-
-              <div className="mt-2 text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
-                {effectiveAuthMode === "sign-up"
-                  ? "Already have an account?"
-                  : "Need an account?"}
-              </div>
-
-              <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                {effectiveAuthMode === "sign-up"
-                  ? "Sign in to continue and access your dashboard."
-                  : "Create one to unlock your dashboard and private tools."}
-              </p>
-
-              <div className="mt-4 flex gap-2">
-                <a
-                  href={effectiveAuthMode === "sign-up" ? signInHref : signUpHref}
-                  onClick={closeMobile}
-                  className="inline-flex flex-1 items-center justify-center rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
-                >
-                  {effectiveAuthMode === "sign-up" ? "Sign in" : "Sign up"}
-                </a>
-              </div>
-            </div>
-          )}
-
-          <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
-            {visibleItems.map((item) => {
-              const active = isActivePath(pathname, item.href);
-
-              return (
-                <Link
-                  key={`${item.label}-${item.href}`}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  onClick={closeMobile}
-                  className={[
-                    "group flex items-center justify-between rounded-2xl border px-4 py-3.5 text-sm font-medium transition-all duration-200",
-                    active
-                      ? "border-zinc-950 bg-zinc-950 text-white shadow-sm dark:border-white dark:bg-white dark:text-zinc-950"
-                      : "border-transparent bg-zinc-50 text-zinc-600 hover:border-black/5 hover:bg-zinc-100 hover:text-zinc-950 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/10 dark:hover:bg-white/10 dark:hover:text-white",
-                  ].join(" ")}
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    {item.icon ? <item.icon /> : null}
-                    <span className="min-w-0 truncate">{item.label}</span>
-                  </span>
-
-                  <span
-                    className={[
-                      "ml-3 inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs transition-all duration-200",
-                      active
-                        ? "border-white/20 bg-white/10 text-white dark:border-zinc-950 dark:bg-zinc-950 dark:text-zinc-950"
-                        : "border-black/5 bg-white text-zinc-400 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-500",
-                    ].join(" ")}
-                  >
-                    →
-                  </span>
-                </Link>
-              );
-            })}
           </nav>
+
+          <div className="mt-4 border-t border-black/5 pt-4 dark:border-white/10">
+            {resolvedLoggedIn ? (
+              <div className="rounded-2xl border border-black/5 bg-white px-3 py-3 shadow-sm dark:border-white/10 dark:bg-white/5">
+                <div className="flex items-center justify-between gap-2">
+                  <Link
+                    href={profileHref}
+                    onClick={closeMobile}
+                    className="inline-flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
+                  >
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
+                      <ProfileIcon />
+                    </span>
+                    <span className="truncate">{resolvedUserName}</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex items-center justify-center rounded-xl border border-black/5 px-3 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-black/5 bg-white px-3 py-3 shadow-sm dark:border-white/10 dark:bg-white/5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400">
+                  Access
+                </div>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  {effectiveAuthMode === "sign-up"
+                    ? "Already have an account?"
+                    : "Need an account?"}
+                </p>
+
+                <div className="mt-3 flex gap-2">
+                  <a
+                    href={effectiveAuthMode === "sign-up" ? effectiveSignInHref : effectiveSignUpHref}
+                    onClick={closeMobile}
+                    className="inline-flex flex-1 items-center justify-center rounded-xl bg-zinc-950 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                  >
+                    {effectiveAuthMode === "sign-up" ? "Sign in" : "Sign up"}
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
     </>

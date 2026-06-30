@@ -1,4 +1,6 @@
+// main/lib/admin-data.ts
 import { db } from "@/lib/db";
+import { buildManagedUserWhere, type AdminScopeViewer } from "@/lib/auth";
 
 export type AdminOpportunity = {
   id: string;
@@ -24,12 +26,17 @@ export type AdminGuidance = {
 export type AdminUser = {
   id: string;
   name: string;
+  displayName: string;
+  legalName: string;
+  username: string;
   email: string;
   role: string;
+  status: string;
   verified: boolean;
   applications: number;
   joinedAt: string;
   lastActiveAt: string | null;
+  invitedByAdminId: string | null;
 };
 
 export type QueueItem = {
@@ -38,6 +45,44 @@ export type QueueItem = {
   count: number;
   status: string;
   priority: string;
+};
+
+export type CreditTopUpHistory = {
+  id: string;
+  txRef: string;
+  email: string;
+  label: string;
+  mode: string;
+  amountNgn: number;
+  creditedUsdCents: number;
+  creditedUsd: number;
+  currency: string;
+  status: string;
+  providerStatus: string | null;
+  verifiedAt: string | null;
+  creditedAt: string | null;
+  createdAt: string;
+};
+
+export type CreditTransferHistory = {
+  id: string;
+  txRef: string;
+  senderLookup: string;
+  recipientLookup: string;
+  purpose: string;
+  amountCents: number;
+  status: string;
+  createdAt: string;
+  note?: string | null;
+};
+
+export type AdminDashboardData = {
+  opportunities: AdminOpportunity[];
+  guidancePosts: AdminGuidance[];
+  users: AdminUser[];
+  queueItems: QueueItem[];
+  creditTopUps: CreditTopUpHistory[];
+  creditTransfers: CreditTransferHistory[];
 };
 
 type RawRecord = Record<string, any>;
@@ -99,14 +144,31 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function getDisplayUserRole(record: RawRecord): string {
+  const rawRole = toStringValue(record.role ?? "").toUpperCase();
+  const approved = toBool(record.isApproved ?? false);
+
+  if (rawRole === "SUPER_ADMIN") return "Super admin";
+  if (rawRole === "ADMIN") return approved ? "Admin" : "Pending admin";
+  if (rawRole === "PENDING_ADMIN") return "Pending admin";
+  if (rawRole === "USER") return "User";
+  return "User";
+}
+
+function getDisplayUserStatus(record: RawRecord): string {
+  const raw = toStringValue(record.status ?? "").toUpperCase();
+
+  if (raw === "ACTIVE") return "Active";
+  if (raw === "PENDING") return "Pending";
+  if (raw === "SUSPENDED") return "Suspended";
+
+  return raw ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() : "Pending";
+}
+
 function mapOpportunity(record: RawRecord): AdminOpportunity {
   const title = toStringValue(record.title ?? record.name, "Untitled opportunity");
   const amount = toStringValue(
-    record.amount ??
-      record.prizeAmount ??
-      record.value ??
-      record.reward ??
-      "—",
+    record.amount ?? record.prizeAmount ?? record.value ?? record.reward ?? "—",
   );
   const category = toStringValue(record.category ?? record.type ?? "General");
   const deadline = formatDateValue(record.deadline ?? record.dueDate ?? record.closingDate);
@@ -114,11 +176,7 @@ function mapOpportunity(record: RawRecord): AdminOpportunity {
   const summary = toStringValue(record.summary ?? record.description ?? "");
   const verified = toBool(record.verified ?? record.isVerified ?? false);
 
-  const winnerName =
-    record.winnerName ??
-    record.winner?.name ??
-    record.assignedWinner?.name ??
-    null;
+  const winnerName = record.winnerName ?? record.winner?.name ?? record.assignedWinner?.name ?? null;
 
   return {
     id: toStringValue(record.id),
@@ -145,17 +203,24 @@ function mapGuidance(record: RawRecord): AdminGuidance {
 }
 
 function mapUser(record: RawRecord): AdminUser {
+  const displayName = toStringValue(
+    record.displayName ?? record.legalName ?? record.username ?? record.email ?? "Unknown user",
+  );
+
   return {
     id: toStringValue(record.id),
-    name: toStringValue(record.name ?? record.fullName ?? "Unknown user"),
+    name: displayName,
+    displayName: toStringValue(record.displayName ?? ""),
+    legalName: toStringValue(record.legalName ?? ""),
+    username: toStringValue(record.username ?? ""),
     email: toStringValue(record.email ?? ""),
-    role: toStringValue(record.role ?? "User"),
+    role: getDisplayUserRole(record),
+    status: getDisplayUserStatus(record),
     verified: toBool(record.verified ?? record.isVerified ?? false),
     applications: toNumber(record.applications ?? record.applicationCount ?? 0),
     joinedAt: formatDateValue(record.joinedAt ?? record.createdAt),
-    lastActiveAt: record.lastActiveAt
-      ? formatDateValue(record.lastActiveAt)
-      : null,
+    lastActiveAt: record.lastActiveAt ? formatDateValue(record.lastActiveAt) : null,
+    invitedByAdminId: record.invitedByAdminId ? toStringValue(record.invitedByAdminId) : null,
   };
 }
 
@@ -169,11 +234,179 @@ function mapQueueItem(record: RawRecord): QueueItem {
   };
 }
 
-export async function getAdminDashboardData() {
-  const opportunityDelegate = pickDelegate(
-    (db as any).opportunity,
-    (db as any).opportunities,
-  );
+function mapCreditTopUp(record: RawRecord): CreditTopUpHistory {
+  const creditedUsdCents = toNumber(record.creditedUsdCents ?? record.creditedUsd ?? 0);
+
+  return {
+    id: toStringValue(record.id),
+    txRef: toStringValue(record.txRef ?? record.reference ?? ""),
+    email: toStringValue(record.email ?? ""),
+    label: toStringValue(record.label ?? "Top up"),
+    mode: toStringValue(record.mode ?? "pack"),
+    amountNgn: toNumber(record.amountNgn ?? 0),
+    creditedUsdCents,
+    creditedUsd: creditedUsdCents,
+    currency: toStringValue(record.currency ?? "NGN"),
+    status: toStringValue(record.status ?? "pending"),
+    providerStatus: record.providerStatus ? toStringValue(record.providerStatus) : null,
+    verifiedAt: record.verifiedAt ? formatDateValue(record.verifiedAt) : null,
+    creditedAt: record.creditedAt ? formatDateValue(record.creditedAt) : null,
+    createdAt: formatDateValue(record.createdAt),
+  };
+}
+
+function mapCreditTransfer(record: RawRecord): CreditTransferHistory {
+  return {
+    id: toStringValue(record.id),
+    txRef: toStringValue(record.txRef ?? record.reference ?? ""),
+    senderLookup: toStringValue(
+      record.senderLookup ??
+        record.senderName ??
+        record.senderEmail ??
+        record.sender?.name ??
+        record.sender?.email ??
+        "Unknown sender",
+    ),
+    recipientLookup: toStringValue(
+      record.recipientLookup ??
+        record.recipientName ??
+        record.recipientEmail ??
+        record.recipient?.name ??
+        record.recipient?.email ??
+        "Unknown recipient",
+    ),
+    purpose: toStringValue(record.purpose ?? "general"),
+    amountCents: toNumber(record.amountCents ?? record.amount ?? 0),
+    status: toStringValue(record.status ?? "pending"),
+    createdAt: formatDateValue(record.createdAt),
+    note: record.note ? toStringValue(record.note) : null,
+  };
+}
+
+function getViewerIdentity(viewer?: AdminScopeViewer) {
+  const viewerRecord = (viewer ?? {}) as RawRecord;
+
+  return {
+    id: toStringValue(viewerRecord.id ?? ""),
+    email: toStringValue(viewerRecord.email ?? ""),
+    role: toStringValue(viewerRecord.role ?? "").toUpperCase(),
+  };
+}
+
+function isSuperAdmin(viewer?: AdminScopeViewer) {
+  return getViewerIdentity(viewer).role === "SUPER_ADMIN";
+}
+
+function valueMatches(target: string, candidate: unknown, caseInsensitive = false) {
+  if (!target) return false;
+  const normalizedCandidate = toStringValue(candidate);
+  if (!normalizedCandidate) return false;
+
+  return caseInsensitive
+    ? normalizedCandidate.toLowerCase() === target.toLowerCase()
+    : normalizedCandidate === target;
+}
+
+function recordMatchesViewer(record: RawRecord, viewer?: AdminScopeViewer) {
+  if (!viewer || isSuperAdmin(viewer)) return true;
+
+  const { id, email } = getViewerIdentity(viewer);
+
+  if (id) {
+    const directIdFields = [
+      "createdById",
+      "adminId",
+      "ownerId",
+      "userId",
+      "authorId",
+      "initiatedById",
+      "processedById",
+      "verifiedById",
+      "actorId",
+      "performedById",
+      "requestedById",
+      "createdByAdminId",
+      "handledById",
+      "submittedById",
+      "updatedById",
+      "senderId",
+      "recipientId",
+    ];
+
+    if (directIdFields.some((field) => valueMatches(id, record[field]))) {
+      return true;
+    }
+
+    const nestedIdFields = [
+      "createdBy",
+      "admin",
+      "owner",
+      "user",
+      "author",
+      "initiatedBy",
+      "processedBy",
+      "verifiedBy",
+      "actor",
+      "performedBy",
+      "requestedBy",
+      "sender",
+      "recipient",
+    ];
+
+    for (const field of nestedIdFields) {
+      const nested = record[field];
+      if (nested && typeof nested === "object") {
+        const nestedId = (nested as RawRecord).id;
+        if (valueMatches(id, nestedId)) return true;
+      }
+    }
+  }
+
+  if (email) {
+    const emailFields = [
+      "email",
+      "adminEmail",
+      "ownerEmail",
+      "userEmail",
+      "createdByEmail",
+      "requestedByEmail",
+      "senderEmail",
+      "recipientEmail",
+    ];
+
+    if (emailFields.some((field) => valueMatches(email, record[field], true))) {
+      return true;
+    }
+
+    const nestedEmailFields = [
+      "createdBy",
+      "admin",
+      "owner",
+      "user",
+      "requestedBy",
+      "sender",
+      "recipient",
+    ];
+
+    for (const field of nestedEmailFields) {
+      const nested = record[field];
+      if (nested && typeof nested === "object") {
+        const nestedEmail = (nested as RawRecord).email;
+        if (valueMatches(email, nestedEmail, true)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function filterRecordsForViewer(records: RawRecord[], viewer?: AdminScopeViewer) {
+  if (!viewer || isSuperAdmin(viewer)) return records;
+  return records.filter((record) => recordMatchesViewer(record, viewer));
+}
+
+export async function getAdminDashboardData(viewer?: AdminScopeViewer): Promise<AdminDashboardData> {
+  const opportunityDelegate = pickDelegate((db as any).opportunity, (db as any).opportunities);
 
   const guidanceDelegate = pickDelegate(
     (db as any).guidancePost,
@@ -181,19 +414,36 @@ export async function getAdminDashboardData() {
     (db as any).guidance,
   );
 
-  const userDelegate = pickDelegate(
-    (db as any).user,
-    (db as any).users,
-  );
+  const userDelegate = pickDelegate((db as any).user, (db as any).users);
 
   const queueDelegate = pickDelegate(
+    (db as any).reviewQueueItem,
+    (db as any).reviewQueueItems,
     (db as any).queueItem,
     (db as any).queueItems,
     (db as any).verificationQueueItem,
     (db as any).verificationQueueItems,
   );
 
-  const [opportunitiesRaw, guidanceRaw, usersRaw, queueRaw] = await Promise.all([
+  const creditTopUpDelegate = pickDelegate((db as any).creditTopUp, (db as any).creditTopUps);
+
+  const creditTransferDelegate = pickDelegate(
+    (db as any).creditTransfer,
+    (db as any).creditTransfers,
+    (db as any).transfer,
+    (db as any).transfers,
+  );
+
+  const userWhere = buildManagedUserWhere(viewer);
+
+  const [
+    opportunitiesRaw,
+    guidanceRaw,
+    usersRaw,
+    queueRaw,
+    creditTopUpsRaw,
+    creditTransfersRaw,
+  ] = await Promise.all([
     safeFindMany(
       opportunityDelegate,
       {
@@ -211,6 +461,7 @@ export async function getAdminDashboardData() {
     safeFindMany(
       userDelegate,
       {
+        where: userWhere,
         orderBy: { createdAt: "desc" },
       },
       "users",
@@ -222,17 +473,35 @@ export async function getAdminDashboardData() {
       },
       "queue items",
     ),
+    safeFindMany(
+      creditTopUpDelegate,
+      {
+        orderBy: { createdAt: "desc" },
+      },
+      "credit top-ups",
+    ),
+    safeFindMany(
+      creditTransferDelegate,
+      {
+        orderBy: { createdAt: "desc" },
+      },
+      "credit transfers",
+    ),
   ]);
 
   const opportunities = opportunitiesRaw.map(mapOpportunity);
   const guidancePosts = guidanceRaw.map(mapGuidance);
   const users = usersRaw.map(mapUser);
   const queueItems = queueRaw.map(mapQueueItem);
+  const creditTopUps = filterRecordsForViewer(creditTopUpsRaw, viewer).map(mapCreditTopUp);
+  const creditTransfers = filterRecordsForViewer(creditTransfersRaw, viewer).map(mapCreditTransfer);
 
   return {
     opportunities,
     guidancePosts,
     users,
     queueItems,
+    creditTopUps,
+    creditTransfers,
   };
 }

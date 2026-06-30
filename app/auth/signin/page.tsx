@@ -1,12 +1,16 @@
-// main/app/auth/sign-in/page.tsx
 import { SignInForm } from "@/components/sign-in-form";
 
 type PageProps = {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; reason?: string }>;
 };
 
 export default async function SignInPage({ searchParams }: PageProps) {
-  const { next } = await searchParams;
+  const { next, reason } = await searchParams;
 
-  return <SignInForm nextPath={next ?? "/dashboard"} />;
+  const notice =
+    reason === "session-expired"
+      ? "Your session timed out. Please sign in again."
+      : null;
+
+  return <SignInForm nextPath={next ?? "/dashboard"} notice={notice} />;
 }

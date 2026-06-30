@@ -1,14 +1,31 @@
+// main/app/auth/signup/page.tsx
 import { SignInForm } from "@/components/sign-in-form";
 
-export default function SignUpPage({
+type SignUpPageProps = {
+  searchParams?: Promise<{
+    next?: string;
+    invite?: string;
+    inviteToken?: string;
+    signupLinkToken?: string;
+  }>;
+};
+
+export default async function SignUpPage({
   searchParams,
-}: {
-  searchParams?: { next?: string };
-}) {
+}: SignUpPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+
+  const inviteToken =
+    params?.invite?.trim() ||
+    params?.inviteToken?.trim() ||
+    params?.signupLinkToken?.trim() ||
+    "";
+
   return (
     <SignInForm
-      nextPath={searchParams?.next ?? "/dashboard"}
+      nextPath={params?.next ?? "/dashboard"}
       defaultMode="signup"
+      inviteToken={inviteToken || undefined}
     />
   );
 }

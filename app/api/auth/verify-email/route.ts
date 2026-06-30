@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/tokens";
-import { verifyEmailSchema } from "@/lib/validators/auth";
+import { issueSession, sanitizeNextPath } from "@/lib/auth";
+import { verifyEmailCodeSchema, verifyEmailSchema } from "@/lib/validators/auth";
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,47 @@ function setAuthCookie(response: NextResponse, userId: string) {
   return response;
 }
 
-async function verifyToken(rawToken: string) {
+async function verifyWithCode(email: string, code: string) {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanCode = code.trim();
+  const tokenHash = hashToken(`${cleanEmail}:${cleanCode}`);
+
+  const verification = await prisma.verificationToken.findFirst({
+    where: {
+      token: tokenHash,
+      purpose: "EMAIL_VERIFY",
+      consumedAt: null,
+      expiresAt: {
+        gt: new Date(),
+      },
+      identifier: cleanEmail,
+    },
+    include: { user: true },
+  });
+
+  if (!verification?.user) {
+    return null;
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: verification.user.id },
+      data: {
+        verified: true,
+        emailVerifiedAt: new Date(),
+        status: "ACTIVE",
+      },
+    }),
+    prisma.verificationToken.update({
+      where: { token: tokenHash },
+      data: { consumedAt: new Date() },
+    }),
+  ]);
+
+  return verification.user;
+}
+
+async function verifyLegacyToken(rawToken: string) {
   const tokenHash = hashToken(rawToken);
 
   const verification = await prisma.verificationToken.findUnique({
@@ -50,62 +91,94 @@ async function verifyToken(rawToken: string) {
     return null;
   }
 
-  await prisma.user.update({
-    where: { id: verification.user.id },
-    data: {
-      verified: true,
-      emailVerifiedAt: new Date(),
-      status: "ACTIVE",
-    },
-  });
-
-  await prisma.verificationToken.update({
-    where: { token: tokenHash },
-    data: { consumedAt: new Date() },
-  });
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: verification.user.id },
+      data: {
+        verified: true,
+        emailVerifiedAt: new Date(),
+        status: "ACTIVE",
+      },
+    }),
+    prisma.verificationToken.update({
+      where: { token: tokenHash },
+      data: { consumedAt: new Date() },
+    }),
+  ]);
 
   return verification.user;
 }
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
+  const nextPath = sanitizeNextPath(request.nextUrl.searchParams.get("next"));
 
-  if (!token) {
-    return NextResponse.json({ message: "Token is required" }, { status: 400 });
+  if (token) {
+    const user = await verifyLegacyToken(token);
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Verification link is invalid or expired" },
+        { status: 400 },
+      );
+    }
+
+    const response = NextResponse.redirect(new URL(nextPath, request.url));
+    await issueSession(response, user.id, request);
+    return setAuthCookie(response, user.id);
   }
 
-  const user = await verifyToken(token);
-
-  if (!user) {
-    return NextResponse.json(
-      { message: "Verification link is invalid or expired" },
-      { status: 400 }
-    );
-  }
-
-  const response = NextResponse.json({ message: "Email verified", success: true });
-  return setAuthCookie(response, user.id);
+  return NextResponse.json(
+    { message: "Verification link is invalid or expired" },
+    { status: 400 },
+  );
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const parsed = verifyEmailSchema.parse(body);
+    const nextPath = sanitizeNextPath(
+      typeof body?.nextPath === "string" ? body.nextPath : "/dashboard?welcome=verified",
+    );
 
-    const user = await verifyToken(parsed.token);
+    const parsed = verifyEmailCodeSchema.safeParse(body);
 
-    if (!user) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { message: "Verification link is invalid or expired" },
-        { status: 400 }
+        {
+          code: "VALIDATION_ERROR",
+          message: "Please fix the highlighted fields.",
+          errors: parsed.error.issues.map((issue) => ({
+            field: issue.path.join(".") || null,
+            message: issue.message,
+          })),
+        },
+        { status: 400 },
       );
     }
 
-    const response = NextResponse.json({ message: "Email verified", success: true });
+    const user = await verifyWithCode(parsed.data.email, parsed.data.code);
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          code: "INVALID_VERIFICATION_CODE",
+          message: "Verification code is invalid or expired.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const response = NextResponse.json({
+      message: "Email verified",
+      success: true,
+      redirectUrl: nextPath,
+    });
+
+    await issueSession(response, user.id, request);
     return setAuthCookie(response, user.id);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Request failed";
-
     return NextResponse.json({ message }, { status: 400 });
   }
 }

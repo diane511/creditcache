@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -26,7 +27,23 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <Script id="platform-font-detect" strategy="beforeInteractive">
+          {`(function () {
+            try {
+              var ua = navigator.userAgent || navigator.vendor || window.opera;
+              var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+              var isAndroid = /Android/i.test(ua);
+              document.documentElement.dataset.platform = isIOS ? 'ios' : isAndroid ? 'android' : 'other';
+            } catch (e) {
+              document.documentElement.dataset.platform = 'other';
+            }
+          })();`}
+        </Script>
+      </head>
+
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

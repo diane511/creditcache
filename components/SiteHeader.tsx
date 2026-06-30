@@ -37,25 +37,9 @@ function SearchIcon() {
   );
 }
 
-function ProfileIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
-      <path
-        d="M20 21a8 8 0 1 0-16 0"
-        stroke="currentColor"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-      />
-      <path d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" strokeWidth="2.1" />
-    </svg>
-  );
-}
-
 type SiteHeaderProps = {
   isLoggedIn?: boolean;
   onMenuClick?: () => void;
-  profileHref?: string;
-  userName?: string;
 };
 
 type AuthMeUser = {
@@ -69,12 +53,7 @@ type AuthMeUser = {
   status?: string;
 };
 
-export function SiteHeader({
-  isLoggedIn,
-  onMenuClick,
-  profileHref = "/profile",
-  userName = "Guest",
-}: SiteHeaderProps) {
+export function SiteHeader({ isLoggedIn, onMenuClick }: SiteHeaderProps) {
   const [sessionUser, setSessionUser] = useState<AuthMeUser | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
@@ -125,22 +104,10 @@ export function SiteHeader({
   }, []);
 
   const resolvedLoggedIn = isLoggedIn ?? Boolean(sessionUser);
-  const resolvedName = useMemo(() => {
-    if (!resolvedLoggedIn) return "Guest";
 
-    return (
-      sessionUser?.displayName?.trim() ||
-      sessionUser?.username?.trim() ||
-      sessionUser?.email?.split("@")[0]?.trim() ||
-      userName ||
-      "Profile"
-    );
-  }, [resolvedLoggedIn, sessionUser, userName]);
-
-  const profileLabel = useMemo(() => {
-    if (!resolvedLoggedIn) return "Guest";
-    return sessionUser?.username?.trim() || sessionUser?.displayName?.trim() || "Profile";
-  }, [resolvedLoggedIn, sessionUser]);
+  const headerTitle = useMemo(() => {
+    return resolvedLoggedIn ? "Your Future Fully Funded" : "Explore opportunities safely";
+  }, [resolvedLoggedIn]);
 
   return (
     <header
@@ -172,9 +139,7 @@ export function SiteHeader({
             </div>
 
             <div className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
-              {resolvedLoggedIn
-                ? "Your Future Fully Funded"
-                : "Explore opportunities safely"}
+              {headerTitle}
             </div>
           </div>
         </div>
@@ -197,24 +162,6 @@ export function SiteHeader({
               </Link>
             </>
           )}
-
-          <Link
-            href={resolvedLoggedIn ? profileHref : "/signin"}
-            aria-label={resolvedLoggedIn ? `Profile for ${resolvedName}` : "Profile"}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-black/5 bg-white px-3.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
-          >
-            <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-zinc-950 px-2 text-white dark:bg-white dark:text-zinc-950">
-              {resolvedLoggedIn ? (
-                <span className="text-xs font-semibold uppercase tracking-wide">
-                  {loadingUser ? "…" : "Profile"}
-                </span>
-              ) : (
-                <ProfileIcon />
-              )}
-            </span>
-
-            <span className="hidden sm:inline">{resolvedName}</span>
-          </Link>
 
           <button
             type="button"

@@ -130,6 +130,29 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function getDisplayUserRole(record: RawRecord): string {
+  const rawRole = toStringValue(record.role ?? "").toUpperCase();
+  const approved = toBool(record.isApproved ?? false);
+
+  if (rawRole === "SUPER_ADMIN") {
+    return "Super admin";
+  }
+
+  if (rawRole === "ADMIN") {
+    return approved ? "Admin" : "Pending admin";
+  }
+
+  if (rawRole === "PENDING_ADMIN") {
+    return "Pending admin";
+  }
+
+  if (rawRole === "USER") {
+    return "User";
+  }
+
+  return "User";
+}
+
 function mapPublicOpportunity(record: RawRecord): Opportunity {
   const title = toStringValue(record.title ?? record.name, "Untitled opportunity");
 
@@ -182,9 +205,9 @@ function mapGuidance(record: RawRecord): AdminGuidance {
 function mapUser(record: RawRecord): AdminUser {
   return {
     id: toStringValue(record.id),
-    name: toStringValue(record.name ?? record.fullName ?? "Unknown user"),
+    name: toStringValue(record.displayName ?? record.legalName ?? record.username ?? record.email ?? "Unknown user"),
     email: toStringValue(record.email ?? ""),
-    role: toStringValue(record.role ?? "User"),
+    role: getDisplayUserRole(record),
     verified: toBool(record.verified ?? record.isVerified ?? false),
     applications: toNumber(record.applications ?? record.applicationCount ?? 0),
     joinedAt: formatDateValue(record.joinedAt ?? record.createdAt),
