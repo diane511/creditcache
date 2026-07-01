@@ -205,7 +205,13 @@ function mapGuidance(record: RawRecord): AdminGuidance {
 function mapUser(record: RawRecord): AdminUser {
   return {
     id: toStringValue(record.id),
-    name: toStringValue(record.displayName ?? record.legalName ?? record.username ?? record.email ?? "Unknown user"),
+    name: toStringValue(
+      record.displayName ??
+        record.legalName ??
+        record.username ??
+        record.email ??
+        "Unknown user",
+    ),
     email: toStringValue(record.email ?? ""),
     role: getDisplayUserRole(record),
     verified: toBool(record.verified ?? record.isVerified ?? false),
@@ -314,6 +320,23 @@ async function loadGenericRecords(
   );
 }
 
+async function loadApplicationRecords(): Promise<RawRecord[]> {
+  const applicationDelegate = pickDelegate(
+    (db as any).application,
+    (db as any).applications,
+    (db as any).applicationRecord,
+    (db as any).applicationRecords,
+  );
+
+  return safeFindMany(
+    applicationDelegate,
+    {
+      orderBy: { submittedAt: "desc" },
+    },
+    "applications",
+  );
+}
+
 export const opportunities: Opportunity[] = (await loadOpportunityRecords()).map(
   mapPublicOpportunity,
 );
@@ -322,10 +345,7 @@ export const scamReports: ScamReport[] = (await loadScamReportRecords()).map(
   mapScamReport,
 );
 
-export const applications: ApplicationRecord[] = await loadGenericRecords(
-  ["application", "applications", "applicationRecord", "applicationRecords"],
-  "applications",
-);
+export const applications: ApplicationRecord[] = await loadApplicationRecords();
 
 export const blogPosts: BlogPost[] = await loadGenericRecords(
   ["blogPost", "blogPosts", "post", "posts"],

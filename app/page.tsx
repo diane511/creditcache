@@ -1,14 +1,21 @@
 "use client";
 
+import Head from "next/head";
+import Image from "next/image";
+import Link from "next/link";
 import {
   useEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import * as THREE from "three";
+
+const SITE_NAME = "Credit Cache";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://your-domain.com";
+const SITE_DESCRIPTION =
+  "Credit Cache helps users explore opportunities, scholarship sweepstakes, lottery, and win recovery with a simple, trustworthy experience.";
 
 type PointerPoint = {
   x: number;
@@ -426,69 +433,130 @@ export default function Home() {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: SITE_DESCRIPTION,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${SITE_URL}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background font-sans text-foreground">
-      <CurvedGridBackground />
+    <>
+      <Head>
+        <title>Credit Cache | Opportunities, Scholarships, Lottery & Win Recovery</title>
+        <meta
+          name="description"
+          content={SITE_DESCRIPTION}
+        />
+        <meta
+          name="keywords"
+          content="Credit Cache, opportunities, scholarships, lottery, win recovery, signup, support center"
+        />
+        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+        <link rel="canonical" href={SITE_URL} />
 
-      <main className="relative z-10 flex w-full max-w-3xl flex-1 flex-col items-center justify-between px-6 py-24 sm:items-start sm:px-16">
-        <FadeInBlock loaded={loaded} delay={0}>
-          <Image
-            className="dark:invert"
-            src="/cc.jpg"
-            alt="Credit Cache logo"
-            width={200}
-            height={60}
-            priority
-          />
-        </FadeInBlock>
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={SITE_NAME} />
+        <meta
+          property="og:title"
+          content="Credit Cache | Opportunities, Scholarships, Lottery & Win Recovery"
+        />
+        <meta
+          property="og:description"
+          content={SITE_DESCRIPTION}
+        />
+        <meta property="og:url" content={SITE_URL} />
+        <meta property="og:image" content={`${SITE_URL}/cc.jpg`} />
+        <meta property="og:image:alt" content="Credit Cache logo" />
 
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <FadeInBlock loaded={loaded} delay={140}>
-            <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-foreground">
-              Welcome to Credit Cache. Let&apos;s see what brings you here.
-            </h1>
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="Credit Cache | Opportunities, Scholarships, Lottery & Win Recovery"
+        />
+        <meta
+          name="twitter:description"
+          content={SITE_DESCRIPTION}
+        />
+        <meta name="twitter:image" content={`${SITE_URL}/cc.jpg`} />
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData),
+          }}
+        />
+      </Head>
+
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background font-sans text-foreground">
+        <CurvedGridBackground />
+
+        <main className="relative z-10 flex w-full max-w-3xl flex-1 flex-col items-center justify-between px-6 py-24 sm:items-start sm:px-16">
+          <FadeInBlock loaded={loaded} delay={0}>
+            <Image
+              className="dark:invert"
+              src="/cc.jpg"
+              alt="Credit Cache logo"
+              width={200}
+              height={60}
+              priority
+            />
           </FadeInBlock>
 
-          <FadeInBlock loaded={loaded} delay={280}>
-            <p className="max-w-md text-lg leading-8 text-muted">
-              Looking for an opportunity, scholarship sweepstakes, lottery, or win
-              recovery? Create a free{" "}
+          <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+            <FadeInBlock loaded={loaded} delay={140}>
+              <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-foreground">
+                Welcome to Credit Cache. Let&apos;s see what brings you here.
+              </h1>
+            </FadeInBlock>
+
+            <FadeInBlock loaded={loaded} delay={280}>
+              <p className="max-w-md text-lg leading-8 text-muted">
+                Looking for an opportunity, scholarship sweepstakes, lottery, or win
+                recovery? Create a free{" "}
+                <Link
+                  href="/signup"
+                  className="font-medium text-foreground underline underline-offset-4"
+                >
+                  account
+                </Link>{" "}
+                or contact the{" "}
+                <Link
+                  href="/auth/signin"
+                  className="font-medium text-foreground underline underline-offset-4"
+                >
+                  support center
+                </Link>
+                .
+              </p>
+            </FadeInBlock>
+          </div>
+
+          <FadeInBlock loaded={loaded} delay={420} className="w-full">
+            <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
               <Link
                 href="/signup"
-                className="font-medium text-foreground underline underline-offset-4"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-[var(--surface-strong)] px-5 text-foreground shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:opacity-90 md:w-[158px]"
               >
-                account
-              </Link>{" "}
-              or contact the{" "}
+                Get Started
+              </Link>
+
               <Link
                 href="/auth/signin"
-                className="font-medium text-foreground underline underline-offset-4"
+                className="flex h-12 w-full items-center justify-center rounded-full border border-border bg-transparent px-5 text-foreground backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--surface)] md:w-[158px]"
               >
-                support center
+                Opportunities
               </Link>
-              .
-            </p>
+            </div>
           </FadeInBlock>
-        </div>
-
-        <FadeInBlock loaded={loaded} delay={420} className="w-full">
-          <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-            <Link
-              href="/signup"
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-[var(--surface-strong)] px-5 text-foreground shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:opacity-90 md:w-[158px]"
-            >
-              Get Started
-            </Link>
-
-            <Link
-              href="/auth/signin"
-              className="flex h-12 w-full items-center justify-center rounded-full border border-border bg-transparent px-5 text-foreground backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[var(--surface)] md:w-[158px]"
-            >
-              Opportunities
-            </Link>
-          </div>
-        </FadeInBlock>
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
