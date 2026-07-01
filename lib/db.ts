@@ -1,3 +1,4 @@
+// main/lib/db.ts
 import { PrismaClient } from "@prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 
@@ -6,7 +7,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const adapter = new PrismaLibSql({
-  url: process.env.TURSO_DATABASE_URL!,
+  url: process.env.TURSO_DATABASE_URL ?? "",
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
