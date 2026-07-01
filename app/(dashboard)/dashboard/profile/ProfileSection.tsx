@@ -1,5 +1,5 @@
+// main/app/(dashboard)/dashboard/profile/ProfileSection.tsx
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/Badge";
 import { SectionTitle } from "../dashboard-ui";
@@ -81,6 +81,7 @@ export type ProfileData = {
 
 type ProfileSectionProps = {
   profile?: ProfileData | null;
+  isAuthenticated: boolean;
 };
 
 function TitleIcon({ kind }: { kind: TitleIconKey }) {
@@ -360,7 +361,13 @@ function DetailIcon({ kind }: { kind: DetailIconKey }) {
     case "availability":
       return (
         <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-          <path d="M12 4v8l5 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M12 4v8l5 3"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
           <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8" />
         </svg>
       );
@@ -578,9 +585,45 @@ function EmptyCard({ title }: { title: string }) {
   );
 }
 
-export function ProfileSection({ profile }: ProfileSectionProps) {
+function AuthPrompt() {
+  return (
+    <section className="rounded-3xl border border-zinc-200 bg-zinc-50 px-5 py-8 dark:border-white/10 dark:bg-white/5">
+      <div className="mx-auto max-w-xl text-center">
+        <h2 className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white">
+          Sign in to view your profile
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+          Your profile summary, applications, and security details appear after you sign in.
+        </p>
+        <div className="mt-5 flex justify-center">
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+          >
+            Sign in
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function ProfileSection({ profile, isAuthenticated }: ProfileSectionProps) {
   if (!profile) {
-    return null;
+    return isAuthenticated ? (
+      <section className="rounded-3xl border border-zinc-200 bg-zinc-50 px-5 py-8 dark:border-white/10 dark:bg-white/5">
+        <div className="mx-auto max-w-xl text-center">
+          <h2 className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white">
+            Profile data is unavailable
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+            You are signed in, but no profile record was returned for this account.
+          </p>
+        </div>
+      </section>
+    ) : (
+      <AuthPrompt />
+    );
   }
 
   return (

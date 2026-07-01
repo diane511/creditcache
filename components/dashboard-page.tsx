@@ -1,3 +1,4 @@
+// main/components/dashboard-page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -11,15 +12,19 @@ import type {
   AnnouncementItem,
   ProfileFormData,
   SubmitProfileResult,
+  GrantOpportunity,
 } from "./dashboard/dashboard-types";
-import { firstNameOf, formatMoneyFromCents, generateUsernameSuggestions, uniqBy } from "./dashboard/dashboard-utils";
+import {
+  firstNameOf,
+  formatMoneyFromCents,
+  generateUsernameSuggestions,
+  uniqBy,
+} from "./dashboard/dashboard-utils";
 
 export default function DashboardPage({
   balance = 0,
   currency = "USD",
   balanceLabel = "Available balance",
-  savedCards = [],
-  paymentMethods = [],
   recentHistory = [],
   applications = [],
   opportunities = [],
@@ -47,15 +52,18 @@ export default function DashboardPage({
     setShowOnboarding(!onboardingComplete);
   }, [onboardingComplete]);
 
-  const openReportsCount = scamReports.filter((item) => item.status !== "Resolved").length;
+  const openReportsCount = scamReports.filter(
+    (item) => item.status !== "Resolved",
+  ).length;
 
-  const eligibleOpportunities = opportunities.filter(
+  const eligibleOpportunities = (opportunities as GrantOpportunity[]).filter(
     (item) => item.eligibility !== "ineligible" && item.eligibility !== "closed",
   );
 
   const balanceFormatted = formatMoneyFromCents(balance, currency);
   const firstName =
-    firstNameOf(profileForm.legalName || welcomeName || legalName || email || "there") || "there";
+    firstNameOf(profileForm.legalName || welcomeName || legalName || email || "there") ||
+    "there";
 
   const suggestedUsernames = useMemo(
     () =>
@@ -171,9 +179,6 @@ export default function DashboardPage({
       <div className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-white">
         <DashboardOnboarding
           firstName={firstName}
-          savedCardsCount={savedCards.length}
-          paymentMethodsCount={paymentMethods.length}
-          applicationsCount={applications.length}
           initialLegalName={profileForm.legalName}
           initialDateOfBirth={profileForm.dateOfBirth}
           initialUsername={profileForm.username}
@@ -199,8 +204,8 @@ export default function DashboardPage({
           firstName={firstName}
           balanceLabel={balanceLabel}
           balanceFormatted={balanceFormatted}
-          savedCardsCount={savedCards.length}
-          paymentMethodsCount={paymentMethods.length}
+          savedCardsCount={0}
+          paymentMethodsCount={0}
           applicationsCount={applications.length}
           openReportsCount={openReportsCount}
           unreadNotifications={mergedNotifications.some((item) => !item.read)}

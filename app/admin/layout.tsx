@@ -26,9 +26,7 @@ export default function AdminLayout({
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
-      <main className="min-h-screen w-full pt-16">
-        {children}
-      </main>
+      <main className="min-h-screen w-full pt-16">{children}</main>
     </div>
   );
 }

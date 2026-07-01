@@ -33,6 +33,21 @@ type ActivityItem = {
   status: string;
 };
 
+type AdminUserStatus = "active" | "pending" | "suspended";
+
+function normalizeAdminUserStatus(status: string | null | undefined): AdminUserStatus {
+  switch ((status ?? "").toLowerCase()) {
+    case "active":
+      return "active";
+    case "pending":
+      return "pending";
+    case "suspended":
+      return "suspended";
+    default:
+      return "pending";
+  }
+}
+
 function formatUsdFromCents(cents: number) {
   try {
     return new Intl.NumberFormat(undefined, {
@@ -492,6 +507,16 @@ export default async function AdminPage() {
     user.email?.split("@")[0] ||
     "Admin";
 
+  const normalizedUsers = (data.users ?? []).map((item) => ({
+    ...item,
+    status: normalizeAdminUserStatus((item as { status?: string | null }).status),
+  }));
+
+  const panelData = {
+    ...data,
+    users: normalizedUsers,
+  };
+
   const mergedActivity: ActivityItem[] = [
     ...creditTopUps.map((tx) => ({
       id: tx.id,
@@ -530,18 +555,16 @@ export default async function AdminPage() {
       <div className="mx-auto w-full max-w-7xl space-y-10">
         <header className="flex items-start justify-between gap-6">
           <div className="max-w-2xl">
-
             <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Welcome back, {displayName}
             </h1>
-
           </div>
 
           <AdminNotificationsBell notificationIds={notificationIds} />
         </header>
 
-        <div className="rounded-[2rem]  ">
-          <AdminBalancePanel {...data} role="admin" />
+        <div className="rounded-[2rem]">
+          <AdminBalancePanel {...panelData} role="admin" />
         </div>
 
         <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">

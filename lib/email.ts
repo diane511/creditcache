@@ -1,3 +1,4 @@
+// main/lib/email.ts
 import nodemailer from "nodemailer";
 
 type SendEmailParams = {
@@ -7,7 +8,12 @@ type SendEmailParams = {
   text?: string;
 };
 
-export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+}: SendEmailParams) {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT ?? 587);
   const user = process.env.SMTP_USER;

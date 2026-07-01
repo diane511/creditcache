@@ -31,10 +31,10 @@ type CreditTransferHistory = {
 
 type TransactionKind = "topup" | "transfer";
 
-type TransactionItem = {
+type TopUpTransactionItem = {
   id: string;
   slug: string;
-  kind: TransactionKind;
+  kind: "topup";
   status: string;
   createdAt: string | Date;
   title: string;
@@ -43,10 +43,35 @@ type TransactionItem = {
   primaryAmount: string;
   secondaryAmount?: string;
   routeLabel: string;
-  source:
-    | { type: "topup"; value: CreditTopUpHistory }
-    | { type: "transfer"; value: CreditTransferHistory };
+  source: {
+    type: "topup";
+    value: CreditTopUpHistory;
+  };
 };
+
+type TransferTransactionItem = {
+  id: string;
+  slug: string;
+  kind: "transfer";
+  status: string;
+  createdAt: string | Date;
+  title: string;
+  subtitle: string;
+  meta: string[];
+  primaryAmount: string;
+  secondaryAmount?: string;
+  routeLabel: string;
+  source: {
+    type: "transfer";
+    value: CreditTransferHistory;
+  };
+};
+
+type TransactionItem = TopUpTransactionItem | TransferTransactionItem;
+
+function isTopUpTransaction(item: TransactionItem): item is TopUpTransactionItem {
+  return item.kind === "topup";
+}
 
 function toDate(value: string | Date) {
   return typeof value === "string" ? new Date(value) : value;
@@ -152,36 +177,50 @@ function statusLabel(status: string) {
   return status.toUpperCase();
 }
 
+function buildTopUpItem(tx: CreditTopUpHistory): TopUpTransactionItem {
+  return {
+    id: `topup-${tx.id}`,
+    slug: buildSlug("topup", tx.label, tx.id),
+    kind: "topup",
+    status: tx.status,
+    createdAt: tx.createdAt,
+    title: tx.label,
+    subtitle: tx.email,
+    meta: [tx.mode, tx.providerStatus].filter(Boolean) as string[],
+    primaryAmount: formatNaira(tx.amountNgn),
+    secondaryAmount: formatUsdFromCents(tx.creditedUsdCents ?? tx.creditedUsd ?? 0),
+    routeLabel: "top-up",
+    source: {
+      type: "topup",
+      value: tx,
+    },
+  };
+}
+
+function buildTransferItem(tx: CreditTransferHistory): TransferTransactionItem {
+  return {
+    id: `transfer-${tx.id}`,
+    slug: buildSlug("transfer", tx.recipientLookup, tx.id),
+    kind: "transfer",
+    status: tx.status,
+    createdAt: tx.createdAt,
+    title: tx.recipientLookup,
+    subtitle: `From ${tx.senderLookup}`,
+    meta: [tx.txRef, tx.note].filter(Boolean) as string[],
+    primaryAmount: formatUsdFromCents(tx.amountCents),
+    secondaryAmount: tx.purpose ? tx.purpose.replace(/_/g, " ").toUpperCase() : undefined,
+    routeLabel: "credit transfer",
+    source: {
+      type: "transfer",
+      value: tx,
+    },
+  };
+}
+
 function buildItems(topUps: CreditTopUpHistory[], transfers: CreditTransferHistory[]) {
   const items: TransactionItem[] = [
-    ...topUps.map((tx) => ({
-      id: `topup-${tx.id}`,
-      slug: buildSlug("topup", tx.label, tx.id),
-      kind: "topup" as const,
-      status: tx.status,
-      createdAt: tx.createdAt,
-      title: tx.label,
-      subtitle: tx.email,
-      meta: [tx.mode, tx.providerStatus].filter(Boolean) as string[],
-      primaryAmount: formatNaira(tx.amountNgn),
-      secondaryAmount: formatUsdFromCents(tx.creditedUsdCents ?? tx.creditedUsd ?? 0),
-      routeLabel: "top-up",
-      source: { type: "topup", value: tx },
-    })),
-    ...transfers.map((tx) => ({
-      id: `transfer-${tx.id}`,
-      slug: buildSlug("transfer", tx.recipientLookup, tx.id),
-      kind: "transfer" as const,
-      status: tx.status,
-      createdAt: tx.createdAt,
-      title: tx.recipientLookup,
-      subtitle: `From ${tx.senderLookup}`,
-      meta: [tx.txRef, tx.note].filter(Boolean) as string[],
-      primaryAmount: formatUsdFromCents(tx.amountCents),
-      secondaryAmount: tx.purpose ? tx.purpose.replace(/_/g, " ").toUpperCase() : undefined,
-      routeLabel: "credit transfer",
-      source: { type: "transfer", value: tx },
-    })),
+    ...topUps.map(buildTopUpItem),
+    ...transfers.map(buildTransferItem),
   ];
 
   return items.sort((a, b) => toDate(b.createdAt).getTime() - toDate(a.createdAt).getTime());
@@ -316,9 +355,6 @@ export default async function TransactionDetailPage({
 
   if (!item) notFound();
 
-  const source = item.source.value;
-  const isTopUp = item.kind === "topup";
-
   return (
     <main className="min-h-screen bg-background px-4 py-6 text-foreground print:bg-background print:px-0 print:py-0">
       <div className="mx-auto flex w-full max-w-[460px] flex-col gap-4 print:max-w-none">
@@ -359,7 +395,7 @@ export default async function TransactionDetailPage({
             <div className="flex items-center justify-between py-0.5">
               <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">TYPE</span>
               <span className="flex items-center gap-1.5 text-[12px] font-bold">
-                {isTopUp ? <TopUpIcon /> : <TransferIcon />}
+                {item.kind === "topup" ? <TopUpIcon /> : <TransferIcon />}
                 {formatKind(item.kind)}
               </span>
             </div>
@@ -374,7 +410,7 @@ export default async function TransactionDetailPage({
             </div>
 
             <ReceiptRow label="DATE" value={formatDateLong(item.createdAt)} />
-            <ReceiptRow label="REFERENCE" value={source.id} />
+            <ReceiptRow label="REFERENCE" value={item.source.value.id} />
             <ReceiptRow label="SLUG" value={item.slug} />
           </div>
 
@@ -393,30 +429,40 @@ export default async function TransactionDetailPage({
           <ReceiptDivider />
 
           <div className="font-mono text-[12px] leading-5 text-foreground">
-            {isTopUp ? (
+            {isTopUpTransaction(item) ? (
               <>
-                <ReceiptRow label="CUSTOMER" value={source.label} />
-                <ReceiptRow label="EMAIL" value={source.email} />
-                <ReceiptRow label="MODE" value={source.mode ?? "—"} />
-                <ReceiptRow label="PROVIDER" value={source.providerStatus ?? "—"} />
-                <ReceiptRow label="NAIRA AMOUNT" value={formatNaira(source.amountNgn)} strong />
+                <ReceiptRow label="CUSTOMER" value={item.source.value.label} />
+                <ReceiptRow label="EMAIL" value={item.source.value.email} />
+                <ReceiptRow label="MODE" value={item.source.value.mode ?? "—"} />
+                <ReceiptRow label="PROVIDER" value={item.source.value.providerStatus ?? "—"} />
+                <ReceiptRow
+                  label="NAIRA AMOUNT"
+                  value={formatNaira(item.source.value.amountNgn)}
+                  strong
+                />
                 <ReceiptRow
                   label="USD CREDITED"
-                  value={formatUsdFromCents(source.creditedUsdCents ?? source.creditedUsd ?? 0)}
+                  value={formatUsdFromCents(
+                    item.source.value.creditedUsdCents ?? item.source.value.creditedUsd ?? 0
+                  )}
                   strong
                 />
               </>
             ) : (
               <>
-                <ReceiptRow label="SENDER" value={source.senderLookup} />
-                <ReceiptRow label="RECIPIENT" value={source.recipientLookup} />
-                <ReceiptRow label="TRANSFER REF" value={source.txRef} />
+                <ReceiptRow label="SENDER" value={item.source.value.senderLookup} />
+                <ReceiptRow label="RECIPIENT" value={item.source.value.recipientLookup} />
+                <ReceiptRow label="TRANSFER REF" value={item.source.value.txRef} />
                 <ReceiptRow
                   label="PURPOSE"
-                  value={source.purpose?.replace(/_/g, " ").toUpperCase() || "—"}
+                  value={item.source.value.purpose?.replace(/_/g, " ").toUpperCase() || "—"}
                 />
-                <ReceiptRow label="AMOUNT" value={formatUsdFromCents(source.amountCents)} strong />
-                <ReceiptRow label="NOTE" value={source.note || "—"} />
+                <ReceiptRow
+                  label="AMOUNT"
+                  value={formatUsdFromCents(item.source.value.amountCents)}
+                  strong
+                />
+                <ReceiptRow label="NOTE" value={item.source.value.note || "—"} />
               </>
             )}
           </div>

@@ -1,16 +1,13 @@
+// main/app/(dashboard)/dashboard/SettingsSection.tsx
 import Link from "next/link";
 import { SectionTitle } from "./dashboard-ui";
-
-type SettingsRow = {
-  label: string;
-  value: string;
-};
+import type { SettingRow } from "./dashboard-types";
 
 type SettingsGroup = {
   title: string;
   description: string;
   href: string;
-  rows: SettingsRow[];
+  rows: SettingRow[];
 };
 
 const settingsGroups: SettingsGroup[] = [
@@ -56,7 +53,11 @@ const settingsGroups: SettingsGroup[] = [
   },
 ];
 
-export function SettingsSection() {
+export function SettingsSection({
+  settingsRows = [],
+}: {
+  settingsRows?: SettingRow[];
+}) {
   return (
     <section
       id="settings"
@@ -67,6 +68,37 @@ export function SettingsSection() {
           title="Settings"
           description="Manage your account, preferences, and notifications."
         />
+
+        {settingsRows.length > 0 ? (
+          <div className="mt-5 overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5">
+            <div className="border-b border-zinc-100 px-4 py-4 dark:border-white/5">
+              <div className="text-base font-semibold text-zinc-950 dark:text-white">
+                Current settings
+              </div>
+              <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                A quick snapshot of the rows passed from the dashboard page.
+              </div>
+            </div>
+
+            <div className="divide-y divide-zinc-100 dark:divide-white/5">
+              {settingsRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between gap-4 px-4 py-4"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-zinc-950 dark:text-white">
+                      {row.label}
+                    </div>
+                  </div>
+                  <div className="truncate text-sm text-zinc-500 dark:text-zinc-400">
+                    {row.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-5 space-y-4">
           {settingsGroups.map((group) => (

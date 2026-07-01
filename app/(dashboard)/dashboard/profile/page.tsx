@@ -1,3 +1,4 @@
+// main/app/(dashboard)/dashboard/profile/page.tsx
 import { ProfileSection } from "./ProfileSection";
 import { getCurrentUser } from "@/lib/auth";
 import { getProfileSectionData } from "@/lib/profile";

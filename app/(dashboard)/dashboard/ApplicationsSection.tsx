@@ -1,23 +1,8 @@
+// main/app/(dashboard)/dashboard/ApplicationsSection.tsx
 import Link from "next/link";
 import { Badge } from "@/components/Badge";
 import { SectionTitle } from "./dashboard-ui";
-
-type ApplicationItem = {
-  id: string | number;
-  opportunityTitle: string;
-  applicantName: string;
-  status: string;
-  deadline: string;
-};
-
-type DeadlineItem = {
-  slug: string;
-  title: string;
-  summary: string;
-  category: string;
-  amount: string;
-  deadline: string;
-};
+import type { ApplicationItem, DeadlineItem } from "./dashboard-types";
 
 export function ApplicationsSection({
   applications,

@@ -1,14 +1,8 @@
+// main/app/(dashboard)/dashboard/SecuritySection.tsx
 import Link from "next/link";
 import { Badge } from "@/components/Badge";
 import { SectionTitle } from "./dashboard-ui";
-
-type ScamReport = {
-  id: string | number;
-  topic: string;
-  channel: string;
-  description: string;
-  status: string;
-};
+import type { ScamReport } from "./dashboard-types";
 
 export function SecuritySection({
   scamReports,
@@ -30,30 +24,34 @@ export function SecuritySection({
         />
 
         <div className="mt-5">
-          {scamReports.map((report) => (
-            <div
-              key={report.id}
-              className="border-b border-zinc-100 py-4 last:border-b-0 dark:border-white/5"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-base font-semibold text-zinc-950 dark:text-white">
-                    {report.topic}
-                  </div>
-                  <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    {report.channel}
-                  </div>
-                </div>
-                <Badge tone={report.status === "Resolved" ? "good" : "warn"}>
-                  {report.status}
-                </Badge>
-              </div>
+          {scamReports.map((report) => {
+            const status = report.status ?? "Open";
+            const tone: "good" | "warn" =
+              status === "Resolved" ? "good" : "warn";
 
-              <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                {report.description}
-              </p>
-            </div>
-          ))}
+            return (
+              <div
+                key={report.id}
+                className="border-b border-zinc-100 py-4 last:border-b-0 dark:border-white/5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-base font-semibold text-zinc-950 dark:text-white">
+                      {report.topic}
+                    </div>
+                    <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                      {report.channel}
+                    </div>
+                  </div>
+                  <Badge tone={tone}>{status}</Badge>
+                </div>
+
+                <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                  {report.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
 

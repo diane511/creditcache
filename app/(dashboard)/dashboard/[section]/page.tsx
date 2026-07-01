@@ -1,3 +1,4 @@
+// main/app/(dashboard)/dashboard/[section]/page.tsx
 import { notFound } from "next/navigation";
 
 import { PaymentsSection } from "../PaymentsSection";
@@ -8,50 +9,16 @@ import { ApplicationsSection } from "../ApplicationsSection";
 import { ActionsSection } from "../ActionsSection";
 import { NotificationsSection } from "../NotificationsSection";
 
-type SavedCard = {
-  brand: string;
-  last4: string;
-  type: string;
-  expiry: string;
-  status: string;
-};
-
-type PaymentMethod = {
-  name: string;
-  note: string;
-  status: string;
-};
-
-type HistoryItem = {
-  title: string;
-  meta: string;
-  tone: "primary" | "good" | "warn";
-};
-
-type SettingRow = {
-  label: string;
-  value: string;
-};
-
-type NotificationItem = {
-  title: string;
-  message: string;
-  time: string;
-  read?: boolean;
-  href?: string;
-};
-
-type ApplicationItem = Record<string, unknown>;
-type OpportunityItem = Record<string, unknown>;
-
-type ScamReport = {
-  id: string;
-  topic: string;
-  channel: string;
-  description: string;
-  status?: string;
-  [key: string]: unknown;
-};
+import type {
+  ApplicationItem,
+  DeadlineItem,
+  HistoryItem,
+  NotificationItem,
+  PaymentMethod,
+  SavedCard,
+  ScamReport,
+  SettingRow,
+} from "../dashboard-types";
 
 type DashboardSectionPageProps = {
   params: Promise<{
@@ -62,7 +29,7 @@ type DashboardSectionPageProps = {
   recentHistory?: HistoryItem[];
   settingsRows?: SettingRow[];
   applications?: ApplicationItem[];
-  opportunities?: OpportunityItem[];
+  opportunities?: DeadlineItem[];
   scamReports?: ScamReport[];
   notifications?: NotificationItem[];
 };

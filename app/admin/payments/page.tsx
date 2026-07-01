@@ -9,16 +9,13 @@ import {
   MAX_CREDIT_USD,
 } from "@/lib/creditcache-payments";
 
-type VerifyState =
-  | { status: "idle"; message: string }
-  | { status: "loading"; message: string }
-  | {
-      status: "success" | "failed";
-      message: string;
-      reference?: string;
-      paidAmountNgn?: number;
-      creditedUsd?: number;
-    };
+type VerifyState = {
+  status: "idle" | "loading" | "success" | "failed";
+  message: string;
+  reference?: string;
+  paidAmountNgn?: number;
+  creditedUsd?: number;
+};
 
 function formatCurrency(cents: number, currencyCode = "USD") {
   try {

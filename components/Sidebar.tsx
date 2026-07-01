@@ -2,9 +2,26 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { ComponentType } from "react";
 import { usePathname } from "next/navigation";
 
 type AuthMode = "sign-in" | "sign-up";
+
+type NavItem = {
+  label: string;
+  href: string;
+  icon?: ComponentType;
+};
+
+type NavSection = {
+  heading: string;
+  items: NavItem[];
+};
+
+type AdminSectionItem = {
+  label: string;
+  href: string;
+};
 
 type SidebarProps = {
   title?: string;
@@ -15,6 +32,7 @@ type SidebarProps = {
   profileHref?: string;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  sections?: readonly AdminSectionItem[];
 };
 
 type AuthMeUser = {
@@ -27,17 +45,6 @@ type AuthMeUser = {
   status?: string;
   verified?: boolean;
   avatarUrl?: string | null;
-};
-
-type NavItem = {
-  label: string;
-  href: string;
-  icon?: () => JSX.Element;
-};
-
-type NavSection = {
-  heading: string;
-  items: NavItem[];
 };
 
 const DASHBOARD_ITEMS: NavItem[] = [
@@ -262,6 +269,7 @@ export function Sidebar({
   profileHref = "/profile",
   mobileOpen = false,
   onMobileClose,
+  sections,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -342,6 +350,18 @@ export function Sidebar({
     signUpHref ?? (isAdminArea ? "/admin/ops-7c3a/signup" : "/signup");
 
   const visibleSections = useMemo<NavSection[]>(() => {
+    if (sections && sections.length > 0) {
+      return [
+        {
+          heading: "Navigation",
+          items: sections.map((item) => ({
+            label: item.label,
+            href: item.href,
+          })),
+        },
+      ];
+    }
+
     if (!resolvedLoggedIn) {
       return [{ heading: "Explore", items: GUEST_ITEMS }];
     }
@@ -354,7 +374,7 @@ export function Sidebar({
     }
 
     return [{ heading: "Workspace", items: DASHBOARD_ITEMS }];
-  }, [resolvedLoggedIn, isAdminArea, isAdminUser]);
+  }, [sections, resolvedLoggedIn, isAdminArea, isAdminUser]);
 
   const closeMobile = () => onMobileClose?.();
 

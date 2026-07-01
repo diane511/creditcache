@@ -1,3 +1,4 @@
+// main/app/auth/google/callback/route.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createRandomPasswordHash } from "@/lib/password";
@@ -119,6 +120,7 @@ export async function GET(request: NextRequest) {
           expiresAt: Math.floor(Date.now() / 1000) + tokenData.expires_in,
           providerData: profile as unknown as object,
         },
+        include: { user: true },
       });
     } else {
       await prisma.authAccount.update({

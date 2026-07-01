@@ -1,9 +1,10 @@
+// main/app/device-font-mode.tsx
 "use client";
 
 import { useEffect } from "react";
 
 function detectPlatform() {
-  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  const ua = navigator.userAgent || navigator.vendor;
 
   const isIOS =
     /iPad|iPhone|iPod/.test(ua) ||

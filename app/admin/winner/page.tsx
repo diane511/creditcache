@@ -1,6 +1,7 @@
+// main/app/admin/winner/page.tsx
 import { AdminSectionShell } from "@/components/admin/AdminSectionShell";
-import { AdminWinnerSection } from "@/components/admin/AdminWinnerSection";
 import { getAdminDashboardData } from "@/lib/admin-data";
+import { AdminWinnerClient } from "./AdminWinnerClient";
 
 export default async function AdminWinnerPage() {
   const { opportunities, users } = await getAdminDashboardData();
@@ -10,10 +11,7 @@ export default async function AdminWinnerPage() {
       title="Winner Selection"
       description="Select and manage winners."
     >
-      <AdminWinnerSection
-        opportunities={opportunities}
-        users={users}
-      />
+      <AdminWinnerClient opportunities={opportunities} users={users} />
     </AdminSectionShell>
   );
 }
