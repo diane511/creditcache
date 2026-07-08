@@ -1,7 +1,6 @@
-// main/app/partner/page.tsx
 import { PageHeader } from "@/components/PageHeader";
-import { partnerPackages } from "@/lib/data";
 import { Badge } from "@/components/Badge";
+import { getPartnerPackages } from "@/lib/data";
 
 type PartnerPackage = {
   name: string;
@@ -9,8 +8,8 @@ type PartnerPackage = {
   details: string[];
 };
 
-export default function PartnerPage() {
-  const packages = partnerPackages as unknown as PartnerPackage[];
+export default async function PartnerPage() {
+  const packages = (await getPartnerPackages()) as unknown as PartnerPackage[];
 
   return (
     <div className="page-shell">

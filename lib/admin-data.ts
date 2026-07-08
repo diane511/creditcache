@@ -97,6 +97,23 @@ function pickDelegate(...candidates: Array<unknown>): FindManyDelegate | undefin
   });
 }
 
+const loggedQueryIssues = new Set<string>();
+
+function logQueryIssue(label: string, error: unknown) {
+  if (loggedQueryIssues.has(label)) return;
+  loggedQueryIssues.add(label);
+
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : String(error);
+
+  if (/no such table|Unknown argument|Unknown field/i.test(message)) {
+    console.warn(`[admin-data] ${label} unavailable (${message}). Returning empty array.`);
+    return;
+  }
+
+  console.error(`[admin-data] Failed to load ${label}:`, error);
+}
+
 async function safeFindMany(
   delegate: FindManyDelegate | undefined,
   args: any,
@@ -110,7 +127,7 @@ async function safeFindMany(
   try {
     return await delegate.findMany(args);
   } catch (error) {
-    console.error(`[admin-data] Failed to load ${label}:`, error);
+    logQueryIssue(label, error);
     return [];
   }
 }
@@ -163,6 +180,49 @@ function getDisplayUserStatus(record: RawRecord): string {
   if (raw === "SUSPENDED") return "Suspended";
 
   return raw ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() : "Pending";
+}
+
+function getTimestampValue(value: unknown): number | null {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    const ts = value.getTime();
+    return Number.isNaN(ts) ? null : ts;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  const parsed = new Date(String(value)).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function getRecordTimestamp(record: RawRecord, fields: string[]): number | null {
+  for (const field of fields) {
+    const ts = getTimestampValue(record[field]);
+    if (ts !== null) return ts;
+  }
+  return null;
+}
+
+function sortRecordsByDate(
+  records: RawRecord[],
+  fields: string[],
+  direction: "asc" | "desc" = "desc",
+): RawRecord[] {
+  const sorted = [...records];
+
+  sorted.sort((a, b) => {
+    const aTs = getRecordTimestamp(a, fields);
+    const bTs = getRecordTimestamp(b, fields);
+
+    if (aTs === null && bTs === null) return 0;
+    if (aTs === null) return 1;
+    if (bTs === null) return -1;
+
+    return direction === "desc" ? bTs - aTs : aTs - bTs;
+  });
+
+  return sorted;
 }
 
 function mapOpportunity(record: RawRecord): AdminOpportunity {
@@ -444,57 +504,48 @@ export async function getAdminDashboardData(viewer?: AdminScopeViewer): Promise<
     creditTopUpsRaw,
     creditTransfersRaw,
   ] = await Promise.all([
-    safeFindMany(
-      opportunityDelegate,
-      {
-        orderBy: { createdAt: "desc" },
-      },
-      "opportunities",
-    ),
-    safeFindMany(
-      guidanceDelegate,
-      {
-        orderBy: { createdAt: "desc" },
-      },
-      "guidance posts",
-    ),
+    safeFindMany(opportunityDelegate, {}, "opportunities"),
+    safeFindMany(guidanceDelegate, {}, "guidance posts"),
     safeFindMany(
       userDelegate,
       {
         where: userWhere,
-        orderBy: { createdAt: "desc" },
       },
       "users",
     ),
-    safeFindMany(
-      queueDelegate,
-      {
-        orderBy: { createdAt: "desc" },
-      },
-      "queue items",
-    ),
-    safeFindMany(
-      creditTopUpDelegate,
-      {
-        orderBy: { createdAt: "desc" },
-      },
-      "credit top-ups",
-    ),
-    safeFindMany(
-      creditTransferDelegate,
-      {
-        orderBy: { createdAt: "desc" },
-      },
-      "credit transfers",
-    ),
+    safeFindMany(queueDelegate, {}, "queue items"),
+    safeFindMany(creditTopUpDelegate, {}, "credit top-ups"),
+    safeFindMany(creditTransferDelegate, {}, "credit transfers"),
   ]);
 
-  const opportunities = opportunitiesRaw.map(mapOpportunity);
-  const guidancePosts = guidanceRaw.map(mapGuidance);
-  const users = usersRaw.map(mapUser);
-  const queueItems = queueRaw.map(mapQueueItem);
-  const creditTopUps = filterRecordsForViewer(creditTopUpsRaw, viewer).map(mapCreditTopUp);
-  const creditTransfers = filterRecordsForViewer(creditTransfersRaw, viewer).map(mapCreditTransfer);
+  const opportunities = sortRecordsByDate(opportunitiesRaw, [
+    "createdAt",
+    "updatedAt",
+    "publishedAt",
+    "deadline",
+  ]).map(mapOpportunity);
+
+  const guidancePosts = sortRecordsByDate(guidanceRaw, [
+    "createdAt",
+    "updatedAt",
+    "publishedAt",
+  ]).map(mapGuidance);
+
+  const users = sortRecordsByDate(usersRaw, ["createdAt", "joinedAt", "updatedAt"]).map(mapUser);
+
+  const queueItems = sortRecordsByDate(queueRaw, ["createdAt", "submittedAt", "updatedAt"]).map(
+    mapQueueItem,
+  );
+
+  const creditTopUps = filterRecordsForViewer(
+    sortRecordsByDate(creditTopUpsRaw, ["createdAt", "verifiedAt", "creditedAt", "updatedAt"]),
+    viewer,
+  ).map(mapCreditTopUp);
+
+  const creditTransfers = filterRecordsForViewer(
+    sortRecordsByDate(creditTransfersRaw, ["createdAt", "updatedAt"]),
+    viewer,
+  ).map(mapCreditTransfer);
 
   return {
     opportunities,

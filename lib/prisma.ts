@@ -1,12 +1,13 @@
-// main/lib/prisma.ts
 import { PrismaClient } from "@prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 
-function getTursoUrl() {
-  const url = process.env.TURSO_DATABASE_URL;
+function getDatabaseUrl() {
+  const url = process.env.DATABASE_URL ?? process.env.TURSO_DATABASE_URL;
+
   if (!url) {
-    throw new Error("TURSO_DATABASE_URL is missing");
+    throw new Error("DATABASE_URL (or TURSO_DATABASE_URL) is missing");
   }
+
   return url;
 }
 
@@ -15,8 +16,8 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const adapter = new PrismaLibSql({
-  url: getTursoUrl(),
-  authToken: process.env.TURSO_AUTH_TOKEN,
+  url: getDatabaseUrl(),
+  authToken: process.env.TURSO_AUTH_TOKEN ?? undefined,
 });
 
 export const prisma =

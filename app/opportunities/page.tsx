@@ -1,12 +1,13 @@
-// main/app/opportunities/page.tsx
 import type { ComponentProps } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { OpportunityBrowser } from "@/components/OpportunityBrowser";
-import { opportunities } from "@/lib/data";
+import { getOpportunities } from "@/lib/data";
 
 type OpportunityBrowserProps = ComponentProps<typeof OpportunityBrowser>;
 
-export default function OpportunitiesPage() {
+export default async function OpportunitiesPage() {
+  const opportunities = await getOpportunities();
+
   return (
     <div className="page-shell">
       <PageHeader

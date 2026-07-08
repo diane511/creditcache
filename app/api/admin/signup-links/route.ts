@@ -1,4 +1,3 @@
-// main/app/api/admin/signup-links/route.ts
 import crypto from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -42,10 +41,10 @@ function serializeLink(link: {
     active: link.active,
     maxUses: link.maxUses,
     usedCount: link.usedCount,
-    lastUsedAt: link.lastUsedAt,
-    expiresAt: link.expiresAt,
-    createdAt: link.createdAt,
-    updatedAt: link.updatedAt,
+    lastUsedAt: link.lastUsedAt ? link.lastUsedAt.toISOString() : null,
+    expiresAt: link.expiresAt ? link.expiresAt.toISOString() : null,
+    createdAt: link.createdAt.toISOString(),
+    updatedAt: link.updatedAt.toISOString(),
     createdById: link.createdById,
     createdBy: link.createdBy,
   };

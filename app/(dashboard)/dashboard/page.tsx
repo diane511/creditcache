@@ -1,4 +1,3 @@
-// main/app/(dashboard)/dashboard/page.tsx
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import DashboardPage from "../../../components/dashboard-page";
@@ -77,31 +76,31 @@ export default async function Page({
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
 
-const sessionUser = await getCurrentUser();
+  const sessionUser = await getCurrentUser();
 
-if (!sessionUser) {
-  redirect("/auth/signin?next=/dashboard");
-}
+  if (!sessionUser) {
+    redirect("/auth/signin?next=/dashboard");
+  }
 
-const user = await prisma.user.findUnique({
-  where: {
-    id: sessionUser.id,
-  },
-  select: {
-    id: true,
-    email: true,
-    username: true,
-    displayName: true,
-    legalName: true,
-    dateOfBirth: true,
-    onboardingComplete: true,
-    creditBalance: true,
-  },
-});
+  const user = await prisma.user.findUnique({
+    where: {
+      id: sessionUser.id,
+    },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      displayName: true,
+      legalName: true,
+      dateOfBirth: true,
+      onboardingComplete: true,
+      creditBalance: true,
+    },
+  });
 
-if (!user) {
-  redirect("/auth/signin?next=/dashboard");
-}
+  if (!user) {
+    redirect("/auth/signin?next=/dashboard");
+  }
 
   const cookieStore = await cookies();
   const onboardingCookie = cookieStore.get(ONBOARDING_COOKIE)?.value === "1";

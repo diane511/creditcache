@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { vaultRecords as seedVault } from "@/lib/data";
+import { getVaultRecords } from "@/lib/data";
 import type { VaultRecord } from "@/lib/types";
 import { readJson, writeJson } from "@/lib/storage";
 
 export async function GET() {
+  const seedVault = await getVaultRecords();
+
   const items = await readJson<VaultRecord[]>(
     "documents.json",
-    seedVault as unknown as VaultRecord[]
+    seedVault as unknown as VaultRecord[],
   );
+
   return NextResponse.json({ documents: items });
 }
 
@@ -18,9 +21,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Document label is required." }, { status: 400 });
   }
 
+  const seedVault = await getVaultRecords();
+
   const current = await readJson<VaultRecord[]>(
     "documents.json",
-    seedVault as unknown as VaultRecord[]
+    seedVault as unknown as VaultRecord[],
   );
 
   const record: VaultRecord = {
@@ -33,5 +38,6 @@ export async function POST(request: Request) {
 
   const next = [record, ...current];
   await writeJson("documents.json", next);
+
   return NextResponse.json({ ok: true, document: record }, { status: 201 });
 }

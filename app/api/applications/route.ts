@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { applications as seedApplications, opportunities } from "@/lib/data";
+import { getApplications, getOpportunities } from "@/lib/data";
 import type { ApplicationRecord } from "@/lib/types";
 import { readJson, writeJson } from "@/lib/storage";
 
 export async function GET() {
+  const seedApplications = await getApplications();
+
   const items = await readJson<ApplicationRecord[]>(
     "applications.json",
-    seedApplications as unknown as ApplicationRecord[]
+    seedApplications as unknown as ApplicationRecord[],
   );
+
   return NextResponse.json({ applications: items });
 }
 
@@ -18,14 +21,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
 
+  const opportunities = await getOpportunities();
   const opportunity = opportunities.find((item) => item.slug === body.opportunitySlug);
+
   if (!opportunity) {
     return NextResponse.json({ error: "Opportunity not found." }, { status: 404 });
   }
 
+  const seedApplications = await getApplications();
+
   const current = await readJson<ApplicationRecord[]>(
     "applications.json",
-    seedApplications as unknown as ApplicationRecord[]
+    seedApplications as unknown as ApplicationRecord[],
   );
 
   const record: ApplicationRecord = {

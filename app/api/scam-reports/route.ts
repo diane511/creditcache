@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { scamReports as seedReports } from "@/lib/data";
+import { getScamReports } from "@/lib/data";
 import type { ScamReport } from "@/lib/types";
 import { readJson, writeJson } from "@/lib/storage";
 
 export async function GET() {
+  const seedReports = await getScamReports();
+
   const items = await readJson<ScamReport[]>(
     "scam-reports.json",
-    seedReports as unknown as ScamReport[]
+    seedReports as unknown as ScamReport[],
   );
+
   return NextResponse.json({ reports: items });
 }
 
@@ -18,9 +21,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "All fields are required." }, { status: 400 });
   }
 
+  const seedReports = await getScamReports();
+
   const current = await readJson<ScamReport[]>(
     "scam-reports.json",
-    seedReports as unknown as ScamReport[]
+    seedReports as unknown as ScamReport[],
   );
 
   const report: ScamReport = {
@@ -34,5 +39,6 @@ export async function POST(request: Request) {
 
   const next = [report, ...current];
   await writeJson("scam-reports.json", next);
+
   return NextResponse.json({ ok: true, report }, { status: 201 });
 }

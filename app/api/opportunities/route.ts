@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { opportunities } from "@/lib/data";
+import { getOpportunities } from "@/lib/data";
 
 export async function GET() {
+  const opportunities = await getOpportunities();
   return NextResponse.json({ opportunities });
 }
