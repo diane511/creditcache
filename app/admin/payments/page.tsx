@@ -17,6 +17,13 @@ type VerifyState = {
   creditedUsd?: number;
 };
 
+const PRICE_REDUCTION_PERCENT = 0.8;
+const PRICE_MULTIPLIER = 1 - PRICE_REDUCTION_PERCENT; // 20% of current price
+
+function apply80PercentReduction(amount: number) {
+  return Math.max(1, Math.round(amount * PRICE_MULTIPLIER));
+}
+
 function formatCurrency(cents: number, currencyCode = "USD") {
   try {
     return new Intl.NumberFormat(undefined, {
@@ -64,7 +71,6 @@ export default function PaymentsPage() {
 
   const manualAmount = Number(manualAmountNgn);
   const isManualAmountValid = Number.isFinite(manualAmount) && manualAmount > 0;
-  const manualCredit = isManualAmountValid ? getManualCredit(manualAmount) : 0;
 
   const selectedPack = useMemo(() => {
     return (
@@ -73,11 +79,18 @@ export default function PaymentsPage() {
     );
   }, [selectedAmountNgn]);
 
+  const discountedSelectedAmountNgn = apply80PercentReduction(selectedPack?.amountNgn ?? 0);
+  const discountedSelectedCreditUsd = apply80PercentReduction(selectedPack?.creditedUsd ?? 0);
+
   const activeAmountNgn =
-    mode === "manual" && isManualAmountValid ? manualAmount : selectedPack?.amountNgn ?? 0;
+    mode === "manual" && isManualAmountValid
+      ? apply80PercentReduction(manualAmount)
+      : discountedSelectedAmountNgn;
 
   const activeCreditUsd =
-    mode === "manual" && isManualAmountValid ? manualCredit : selectedPack?.creditedUsd ?? 0;
+    mode === "manual" && isManualAmountValid
+      ? getManualCredit(activeAmountNgn)
+      : discountedSelectedCreditUsd;
 
   const callbackUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -286,6 +299,8 @@ export default function PaymentsPage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {CREDITCACHE_PACKS.map((pack) => {
                 const active = mode === "pack" && selectedAmountNgn === pack.amountNgn;
+                const reducedAmountNgn = apply80PercentReduction(pack.amountNgn);
+                const reducedCreditUsd = apply80PercentReduction(pack.creditedUsd);
 
                 return (
                   <button
@@ -312,12 +327,14 @@ export default function PaymentsPage() {
                     </div>
 
                     <div className="mt-3 text-2xl font-black tracking-tight">
-                      {formatCurrency(pack.creditedUsd, "USD")}
+                      {formatCurrency(reducedCreditUsd, "USD")}
                     </div>
 
                     <div className="mt-1 text-sm font-semibold opacity-90">Credit</div>
 
-                    <div className="mt-3 text-xs opacity-70">{formatNaira(pack.amountNgn)}</div>
+                    <div className="mt-3 text-xs opacity-70">
+                      {formatNaira(reducedAmountNgn)}
+                    </div>
                   </button>
                 );
               })}
@@ -330,7 +347,7 @@ export default function PaymentsPage() {
                     Manual top up
                   </div>
                   <div className="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
-                    Enter any naira amount to preview a lower CreditCache quote.
+                    Enter any naira amount to preview a much lower CreditCache quote.
                   </div>
                 </div>
 
@@ -372,10 +389,10 @@ export default function PaymentsPage() {
                     Manual credit
                   </div>
                   <div className="mt-1 text-2xl font-black tracking-tight text-zinc-950 dark:text-white">
-                    {isManualAmountValid ? formatCurrency(manualCredit, "USD") : "—"}
+                    {isManualAmountValid ? formatCurrency(getManualCredit(activeAmountNgn), "USD") : "—"}
                   </div>
                   <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                    {isManualAmountValid ? formatNaira(manualAmount) : "Enter an amount"}
+                    {isManualAmountValid ? formatNaira(activeAmountNgn) : "Enter an amount"}
                   </div>
                 </div>
               </div>
@@ -439,7 +456,7 @@ export default function PaymentsPage() {
                 <div className="flex items-center justify-between gap-3">
                   <span>Max balance</span>
                   <span className="font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(MAX_CREDIT_USD * 100, "USD")}
+                    {formatCurrency(apply80PercentReduction(MAX_CREDIT_USD * 100), "USD")}
                   </span>
                 </div>
               </div>
