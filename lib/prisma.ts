@@ -1,33 +1,27 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 
-function getTursoDatabaseUrl() {
-  const url = process.env.TURSO_DATABASE_URL;
+function getDatabaseUrl() {
+  const url = process.env.TURSO_DATABASE_URL ?? process.env.DATABASE_URL;
 
   if (!url) {
-    throw new Error("TURSO_DATABASE_URL is missing");
+    throw new Error("TURSO_DATABASE_URL or DATABASE_URL is missing");
   }
 
   return url;
 }
 
-function getTursoAuthToken() {
-  const token = process.env.TURSO_AUTH_TOKEN;
-
-  if (!token) {
-    throw new Error("TURSO_AUTH_TOKEN is missing");
-  }
-
-  return token;
+function getAuthToken() {
+  return process.env.TURSO_AUTH_TOKEN ?? undefined;
 }
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
 
-const adapter = new PrismaLibSQL({
-  url: getTursoDatabaseUrl(),
-  authToken: getTursoAuthToken(),
+const adapter = new PrismaLibSql({
+  url: getDatabaseUrl(),
+  authToken: getAuthToken(),
 });
 
 export const prisma =
