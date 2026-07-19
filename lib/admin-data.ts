@@ -91,13 +91,35 @@ type FindManyDelegate = {
   findMany: (args?: any) => Promise<RawRecord[]>;
 };
 
+const loggedQueryIssues = new Set<string>();
+
+const IS_BUILD =
+  process.env.NEXT_PHASE === "phase-production-build" || process.env.VERCEL === "1";
+
+const DATABASE_URL = process.env.DATABASE_URL ?? "";
+const IS_LIVE_LIBSQL = /^libsql:\/\//i.test(DATABASE_URL);
+const HAS_TURSO_AUTH = Boolean(process.env.TURSO_AUTH_TOKEN);
+
+function shouldSkipDbAccess() {
+  return IS_BUILD && IS_LIVE_LIBSQL && !HAS_TURSO_AUTH;
+}
+
+function emptyDashboardData(): AdminDashboardData {
+  return {
+    opportunities: [],
+    guidancePosts: [],
+    users: [],
+    queueItems: [],
+    creditTopUps: [],
+    creditTransfers: [],
+  };
+}
+
 function pickDelegate(...candidates: Array<unknown>): FindManyDelegate | undefined {
   return candidates.find((candidate): candidate is FindManyDelegate => {
     return Boolean(candidate) && typeof (candidate as FindManyDelegate).findMany === "function";
   });
 }
-
-const loggedQueryIssues = new Set<string>();
 
 function logQueryIssue(label: string, error: unknown) {
   if (loggedQueryIssues.has(label)) return;
@@ -106,7 +128,11 @@ function logQueryIssue(label: string, error: unknown) {
   const message =
     error instanceof Error ? error.message : typeof error === "string" ? error : String(error);
 
-  if (/no such table|Unknown argument|Unknown field/i.test(message)) {
+  if (
+    /no such table|Unknown argument|Unknown field|401|fetch failed|expected non-null body source/i.test(
+      message,
+    )
+  ) {
     console.warn(`[admin-data] ${label} unavailable (${message}). Returning empty array.`);
     return;
   }
@@ -119,6 +145,11 @@ async function safeFindMany(
   args: any,
   label: string,
 ): Promise<RawRecord[]> {
+  if (shouldSkipDbAccess()) {
+    console.warn(`[admin-data] Skipping ${label} during build because Turso auth is unavailable.`);
+    return [];
+  }
+
   if (!delegate) {
     console.warn(`[admin-data] Missing Prisma delegate for ${label}. Returning empty array.`);
     return [];
@@ -278,7 +309,7 @@ function mapUser(record: RawRecord): AdminUser {
     status: getDisplayUserStatus(record),
     verified: toBool(record.verified ?? record.isVerified ?? false),
     applications: toNumber(record.applications ?? record.applicationCount ?? 0),
-    joinedAt: formatDateValue(record.joinedAt ?? record.createdAt),
+    joinedAt: formatDateValue(record.createdAt ?? record.joinedAt),
     lastActiveAt: record.lastActiveAt ? formatDateValue(record.lastActiveAt) : null,
     invitedByAdminId: record.invitedByAdminId ? toStringValue(record.invitedByAdminId) : null,
   };
@@ -438,15 +469,7 @@ function recordMatchesViewer(record: RawRecord, viewer?: AdminScopeViewer) {
       return true;
     }
 
-    const nestedEmailFields = [
-      "createdBy",
-      "admin",
-      "owner",
-      "user",
-      "requestedBy",
-      "sender",
-      "recipient",
-    ];
+    const nestedEmailFields = ["createdBy", "admin", "owner", "user", "requestedBy", "sender", "recipient"];
 
     for (const field of nestedEmailFields) {
       const nested = record[field];
@@ -466,6 +489,10 @@ function filterRecordsForViewer(records: RawRecord[], viewer?: AdminScopeViewer)
 }
 
 export async function getAdminDashboardData(viewer?: AdminScopeViewer): Promise<AdminDashboardData> {
+  if (shouldSkipDbAccess()) {
+    return emptyDashboardData();
+  }
+
   const opportunityDelegate = pickDelegate((db as any).opportunity, (db as any).opportunities);
 
   const guidanceDelegate = pickDelegate(
@@ -496,27 +523,15 @@ export async function getAdminDashboardData(viewer?: AdminScopeViewer): Promise<
 
   const userWhere = buildManagedUserWhere(viewer);
 
-  const [
-    opportunitiesRaw,
-    guidanceRaw,
-    usersRaw,
-    queueRaw,
-    creditTopUpsRaw,
-    creditTransfersRaw,
-  ] = await Promise.all([
-    safeFindMany(opportunityDelegate, {}, "opportunities"),
-    safeFindMany(guidanceDelegate, {}, "guidance posts"),
-    safeFindMany(
-      userDelegate,
-      {
-        where: userWhere,
-      },
-      "users",
-    ),
-    safeFindMany(queueDelegate, {}, "queue items"),
-    safeFindMany(creditTopUpDelegate, {}, "credit top-ups"),
-    safeFindMany(creditTransferDelegate, {}, "credit transfers"),
-  ]);
+  const [opportunitiesRaw, guidanceRaw, usersRaw, queueRaw, creditTopUpsRaw, creditTransfersRaw] =
+    await Promise.all([
+      safeFindMany(opportunityDelegate, {}, "opportunities"),
+      safeFindMany(guidanceDelegate, {}, "guidance posts"),
+      safeFindMany(userDelegate, { where: userWhere }, "users"),
+      safeFindMany(queueDelegate, {}, "queue items"),
+      safeFindMany(creditTopUpDelegate, {}, "credit top-ups"),
+      safeFindMany(creditTransferDelegate, {}, "credit transfers"),
+    ]);
 
   const opportunities = sortRecordsByDate(opportunitiesRaw, [
     "createdAt",
@@ -525,11 +540,9 @@ export async function getAdminDashboardData(viewer?: AdminScopeViewer): Promise<
     "deadline",
   ]).map(mapOpportunity);
 
-  const guidancePosts = sortRecordsByDate(guidanceRaw, [
-    "createdAt",
-    "updatedAt",
-    "publishedAt",
-  ]).map(mapGuidance);
+  const guidancePosts = sortRecordsByDate(guidanceRaw, ["createdAt", "updatedAt", "publishedAt"]).map(
+    mapGuidance,
+  );
 
   const users = sortRecordsByDate(usersRaw, ["createdAt", "joinedAt", "updatedAt"]).map(mapUser);
 
