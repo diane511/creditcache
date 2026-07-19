@@ -1,3 +1,4 @@
+// main/components/admin/AdminBalancePanel.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -32,46 +33,55 @@ type TopUpPlan = {
   label: string;
   badge: string;
   amountNgn: number;
-  usdCredit: number;
+  usdCredit: number; // cents
   description: string;
 };
 
 type TopUpMode = "pack" | "manual";
 
 const MAX_BALANCE_USD = 1_000_000;
-const MANUAL_RATE_USD_PER_NGN = 15;
 const PAYMENTS_ROUTE = "/admin/payments";
 
 const TOP_UP_PLANS: TopUpPlan[] = [
   {
-    label: "Hot Recommended",
-    badge: "Best start",
-    amountNgn: 500,
-    usdCredit: 14000,
-    description: "Lowest entry pack.",
+    label: "Lowest Entry",
+    badge: "No discount",
+    amountNgn: 2500,
+    usdCredit: 10_000_000, // $100,000
+    description: "Best starting point.",
   },
   {
-    label: "Save More",
-    badge: "Popular",
-    amountNgn: 2000,
-    usdCredit: 60000,
-    description: "Better than 4 small top-ups.",
+    label: "Popular",
+    badge: "10% OFF",
+    amountNgn: 7500,
+    usdCredit: 30_000_000, // $300,000
+    description: "A stronger starter pack.",
   },
   {
-    label: "Power Pack",
-    badge: "More value",
-    amountNgn: 10000,
-    usdCredit: 320000,
-    description: "Stronger value pack.",
+    label: "More Value",
+    badge: "25% OFF",
+    amountNgn: 20000,
+    usdCredit: 100_000_000, // $1,000,000
+    description: "A serious credit jump.",
   },
   {
-    label: "Max Saver",
-    badge: "Top value",
-    amountNgn: 24000,
-    usdCredit: 840000,
-    description: "Highest pack value.",
+    label: "Top Value",
+    badge: "40% OFF",
+    amountNgn: 45000,
+    usdCredit: 600_000_000, // $6,000,000
+    description: "For high-volume usage.",
+  },
+  {
+    label: "Ultimate",
+    badge: "55% OFF",
+    amountNgn: 75000,
+    usdCredit: 1_000_000_000, // $10,000,000
+    description: "Largest pack available.",
   },
 ];
+
+const PACK_CENTS_PER_NGN = TOP_UP_PLANS[0].usdCredit / TOP_UP_PLANS[0].amountNgn;
+const MANUAL_RATE_MULTIPLIER = 0.85; // 15% worse than the fixed packs
 
 function formatCurrency(cents: number, currencyCode = "USD") {
   try {
@@ -98,7 +108,7 @@ function formatNaira(amount: number) {
 }
 
 function getManualUsdCredit(amountNgn: number) {
-  return Math.round(amountNgn * MANUAL_RATE_USD_PER_NGN);
+  return Math.round(amountNgn * PACK_CENTS_PER_NGN * MANUAL_RATE_MULTIPLIER);
 }
 
 function buildPaymentsUrl(params: {
@@ -166,12 +176,8 @@ function TopLink({
       className="group flex items-center justify-between gap-4 border-t border-black/5 py-4 transition hover:opacity-80 dark:border-white/10"
     >
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-zinc-950 dark:text-white">
-          {title}
-        </span>
-        <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">
-          {hint}
-        </span>
+        <span className="block text-sm font-medium text-zinc-950 dark:text-white">{title}</span>
+        <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{hint}</span>
       </span>
       <span className="text-sm text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-zinc-700 dark:group-hover:text-zinc-200">
         ↗
@@ -335,10 +341,7 @@ export function AdminBalancePanel({
             <h2 className="text-4xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-5xl">
               {formatCurrency(balanceCents, currencyCode)}
             </h2>
-            <span className="text-sm text-zinc-500 dark:text-zinc-400"></span>
           </div>
-
-
 
           <div className="mt-6 flex flex-wrap gap-3">
             <ActionButton onClick={() => setTopUpOpen(true)}>Top up balance</ActionButton>
@@ -385,12 +388,12 @@ export function AdminBalancePanel({
           <div className="max-h-[calc(100vh-1rem)] w-full max-w-2xl overflow-y-auto rounded-3xl border border-black/5 bg-white p-4 shadow-2xl dark:border-white/10 dark:bg-zinc-950 sm:p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold tracking-tight text-zinc-950 dark:text-white">
+                <h3 className="text-lg font-semibold tracking-tight text-zinc-950 dark:text-white sm:text-xl">
                   Top up balance
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
                   Choose a pack or enter any naira amount for a manual quote. Manual top-up uses
-                  a lower rate than the packs.
+                  a 15% higher rate and shows no discount.
                 </p>
               </div>
 
@@ -447,7 +450,7 @@ export function AdminBalancePanel({
                     Manual top up
                   </div>
                   <div className="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
-                    Enter any naira amount to preview the dollar credit at a lower rate.
+                    Enter any naira amount to preview the dollar credit at the manual rate.
                   </div>
                 </div>
 
@@ -480,7 +483,7 @@ export function AdminBalancePanel({
                       setTopUpMode("manual");
                     }}
                     placeholder="e.g. 7500"
-                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white sm:text-sm"
                   />
                 </label>
 
@@ -499,7 +502,15 @@ export function AdminBalancePanel({
             </div>
 
             <div className="mt-5 rounded-2xl border border-black/5 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-              Selected: <span className="font-semibold">{topUpPreview}</span>
+              Selected:{" "}
+              <span className="font-semibold">
+                {formatCurrency(activeUsdCredit, "USD")} credit
+              </span>
+            </div>
+
+            <div className="mt-2 rounded-2xl border border-black/5 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+              Current balance:{" "}
+              <span className="font-semibold">{formatCurrency(balanceCents, currencyCode)}</span>
             </div>
 
             {topUpError ? (

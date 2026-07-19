@@ -65,7 +65,7 @@ const GUEST_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS_BASE: NavItem[] = [
-  { label: "Overview", href: "/admin", icon: DashboardIcon },
+  { label: "Home", href: "/admin", icon: DashboardIcon },
   { label: "Metrics", href: "/admin/metrics", icon: UsersIcon },
   { label: "Publish", href: "/admin/publish", icon: BriefcaseIcon },
   { label: "Opportunities", href: "/admin/opportunities", icon: VaultIcon },
@@ -120,6 +120,46 @@ function isDashboardActive(pathname: string, href: string) {
 function isAdminLinkActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function joinSidebarPath(basePath: string, path: string) {
+  const normalizedBase = basePath.trim().replace(/\/+$/, "");
+  const normalizedPath = path.trim().replace(/^\/+/, "");
+
+  if (!normalizedBase) {
+    return normalizedPath ? `/${normalizedPath}` : "/";
+  }
+
+  if (!normalizedPath) {
+    return normalizedBase || "/";
+  }
+
+  return `${normalizedBase}/${normalizedPath}`;
+}
+
+function normalizeSidebarHref(href: string, basePath = "") {
+  const raw = href.trim();
+
+  if (!raw) return basePath || "/";
+
+  // Keep real external links untouched.
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw)) {
+    return raw;
+  }
+
+  // Convert hash-style items to real path links.
+  if (raw.startsWith("#")) {
+    const cleaned = raw.slice(1).replace(/^\/+/, "");
+    return cleaned ? joinSidebarPath(basePath, cleaned) : basePath || "/";
+  }
+
+  // Convert plain values like "admin/users" or "link" into a real path.
+  // On admin pages, relative entries should stay under /admin.
+  if (!raw.startsWith("/")) {
+    return joinSidebarPath(basePath, raw);
+  }
+
+  return raw;
 }
 
 function DashboardIcon() {
@@ -281,7 +321,7 @@ export function Sidebar({
   onMobileClose,
   sections,
 }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
 
   const [sessionUser, setSessionUser] = useState<AuthMeUser | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -342,6 +382,7 @@ export function Sidebar({
 
   const effectiveAuthMode = authMode ?? inferAuthModeFromPathname(pathname);
   const isAdminArea = pathname.startsWith("/admin");
+  const adminBasePath = isAdminArea ? "/admin" : "";
   const isAdminUser = Boolean(sessionUser && isAdminRole(sessionUser.role));
   const isSuperAdminUser = Boolean(sessionUser && isSuperAdminRole(sessionUser.role));
 
@@ -360,7 +401,7 @@ export function Sidebar({
     if (sections && sections.length > 0) {
       const items = sections.map((item) => ({
         label: item.label,
-        href: item.href,
+        href: normalizeSidebarHref(item.href, adminBasePath),
       }));
 
       if (
@@ -373,7 +414,7 @@ export function Sidebar({
 
       return [
         {
-          heading: isAdminArea ? "Admin workspace" : "explore",
+          heading: isAdminArea ? "Admin workspace" : "Explore",
           items,
         },
       ];
@@ -395,7 +436,7 @@ export function Sidebar({
     }
 
     return [{ heading: "Workspace", items: DASHBOARD_ITEMS }];
-  }, [sections, resolvedLoggedIn, isAdminArea, isAdminUser, isSuperAdminUser]);
+  }, [sections, resolvedLoggedIn, isAdminArea, isAdminUser, isSuperAdminUser, adminBasePath]);
 
   const closeMobile = () => onMobileClose?.();
 
@@ -473,14 +514,15 @@ export function Sidebar({
 
                   <div className="space-y-1">
                     {section.items.map((item) => {
-                      const active = item.href.startsWith("/admin")
-                        ? isAdminLinkActive(pathname, item.href)
-                        : isDashboardActive(pathname, item.href);
+                      const normalizedHref = normalizeSidebarHref(item.href, adminBasePath);
+                      const active = normalizedHref.startsWith("/admin")
+                        ? isAdminLinkActive(pathname, normalizedHref)
+                        : isDashboardActive(pathname, normalizedHref);
 
                       return (
                         <Link
-                          key={`${item.label}-${item.href}`}
-                          href={item.href}
+                          key={`${item.label}-${normalizedHref}`}
+                          href={normalizedHref}
                           aria-current={active ? "page" : undefined}
                           onClick={closeMobile}
                           className={[

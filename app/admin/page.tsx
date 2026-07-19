@@ -6,6 +6,8 @@ import { getCurrentUser, isAdminRole } from "@/lib/auth";
 import { AdminBalancePanel } from "@/components/admin/AdminBalancePanel";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
 import { AdminPendingApprovalNotice } from "@/components/admin/AdminPendingApprovalNotice";
+import { AdminSuspendedNotice } from "@/components/admin/AdminSuspendedNotice";
+import { AdminBannedNotice } from "@/components/admin/AdminBannedNotice";
 import { buildAdminNotifications } from "@/lib/admin-notifications";
 import { getAdminDashboardData, type CreditTopUpHistory } from "@/lib/admin-data";
 
@@ -36,6 +38,31 @@ type ActivityItem = {
 };
 
 type AdminUserStatus = "active" | "pending" | "suspended";
+
+type AdminAccessState = "none" | "pending" | "suspended" | "banned";
+
+function getAdminAccessState(user: {
+  role?: string | null;
+  status?: string | null;
+  isApproved?: boolean | null;
+}): AdminAccessState {
+  const role = (user.role ?? "").toUpperCase();
+  const status = (user.status ?? "").toUpperCase();
+
+  if (role === "PENDING_ADMIN" || user.isApproved === false) {
+    return "pending";
+  }
+
+  if (status === "SUSPENDED") {
+    return "suspended";
+  }
+
+  if (status === "BANNED" || role === "BANNED") {
+    return "banned";
+  }
+
+  return "none";
+}
 
 function normalizeAdminUserStatus(status: string | null | undefined): AdminUserStatus {
   switch ((status ?? "").toLowerCase()) {
@@ -483,7 +510,9 @@ export default async function AdminPage() {
     redirect("/auth/signin?next=/admin");
   }
 
-  if (sessionUser.role === "PENDING_ADMIN" || sessionUser.isApproved === false) {
+  const accessState = getAdminAccessState(sessionUser);
+
+  if (accessState === "pending") {
     return (
       <main className="min-h-screen w-full bg-background px-4 py-5 text-foreground sm:px-6 lg:px-8">
         <AdminPendingApprovalNotice
@@ -491,6 +520,32 @@ export default async function AdminPage() {
           requestedPath="/admin"
           title="Your admin account is waiting for approval"
           description="You are signed in, but a super admin still needs to approve your account before the admin workspace opens."
+        />
+      </main>
+    );
+  }
+
+  if (accessState === "suspended") {
+    return (
+      <main className="min-h-screen w-full bg-background px-4 py-5 text-foreground sm:px-6 lg:px-8">
+        <AdminSuspendedNotice
+          email={sessionUser.email ?? null}
+          requestedPath="/admin"
+          title="This admin account is suspended"
+          description="Your account is currently suspended, so admin pages are not available right now."
+        />
+      </main>
+    );
+  }
+
+  if (accessState === "banned") {
+    return (
+      <main className="min-h-screen w-full bg-background px-4 py-5 text-foreground sm:px-6 lg:px-8">
+        <AdminBannedNotice
+          email={sessionUser.email ?? null}
+          requestedPath="/admin"
+          title="This admin account is banned"
+          description="This account is not allowed to access admin pages."
         />
       </main>
     );
@@ -620,7 +675,12 @@ export default async function AdminPage() {
             title="Review queue"
             hint="Open pending items"
           />
-          <QuickAction href="/admin/users" icon={<UsersIcon />} title="People" hint="Manage accounts" />
+          <QuickAction
+            href="/admin/users"
+            icon={<UsersIcon />}
+            title="People"
+            hint="Manage accounts"
+          />
           <QuickAction
             href="/admin/transactions"
             icon={<TopUpIcon />}

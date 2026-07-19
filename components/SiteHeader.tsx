@@ -106,7 +106,7 @@ export function SiteHeader({ isLoggedIn, onMenuClick }: SiteHeaderProps) {
   const resolvedLoggedIn = isLoggedIn ?? Boolean(sessionUser);
 
   const headerTitle = useMemo(() => {
-    return resolvedLoggedIn ? "Your Future Fully Funded" : "Explore opportunities safely";
+    return resolvedLoggedIn ? "" : "Explore opportunities safely";
   }, [resolvedLoggedIn]);
 
   return (

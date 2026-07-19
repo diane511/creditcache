@@ -1,3 +1,4 @@
+// main/app/admin/payments/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -13,19 +14,71 @@ type VerifyState = {
   creditedUsd?: number;
 };
 
-type CreditPack = {
-  label: string;
-  amountNgn: number;
-  creditedUsd: number; // stored as cents for the existing USD formatter
+type PackId = "lowest" | "popular" | "more-value" | "top-value" | "ultimate";
+
+type PricingPack = {
+  id: PackId;
   badge: string;
-  description: string;
+  priceNgn: number;
+  originalPriceNgn: number | null;
+  discount: string | null;
+  creditsCents: number;
+  accent: "blue" | "purple" | "emerald" | "gold";
+  sparkle?: boolean;
 };
 
-const MIN_TOP_UP_NGN = 700;
+const PACKS: PricingPack[] = [
+  {
+    id: "lowest",
+    badge: "LOWEST ENTRY",
+    priceNgn: 2500,
+    originalPriceNgn: null,
+    discount: null,
+    creditsCents: 10_000_000,
+    accent: "blue",
+  },
+  {
+    id: "popular",
+    badge: "POPULAR",
+    priceNgn: 7500,
+    originalPriceNgn: 8333,
+    discount: "10% OFF",
+    creditsCents: 30_000_000,
+    accent: "purple",
+  },
+  {
+    id: "more-value",
+    badge: "MORE VALUE",
+    priceNgn: 20000,
+    originalPriceNgn: 26667,
+    discount: "25% OFF",
+    creditsCents: 100_000_000,
+    accent: "emerald",
+  },
+  {
+    id: "top-value",
+    badge: "TOP VALUE",
+    priceNgn: 45000,
+    originalPriceNgn: 75000,
+    discount: "40% OFF",
+    creditsCents: 600_000_000,
+    accent: "blue",
+  },
+  {
+    id: "ultimate",
+    badge: "ULTIMATE",
+    priceNgn: 75000,
+    originalPriceNgn: 166667,
+    discount: "55% OFF",
+    creditsCents: 1_000_000_000,
+    accent: "gold",
+    sparkle: true,
+  },
+];
 
-function usdCents(value: number) {
-  return Math.round(value * 100);
-}
+const PACK_RATE_CENTS_PER_NGN = PACKS[0].creditsCents / PACKS[0].priceNgn;
+const MANUAL_RATE_MULTIPLIER = 0.85; // 15% worse than packs
+const MIN_MANUAL_TOP_UP_NGN = 1;
 
 function formatCurrency(cents: number, currencyCode = "USD") {
   try {
@@ -51,105 +104,360 @@ function formatNaira(amount: number) {
   }
 }
 
-const CREDITCACHE_PACKS: CreditPack[] = [
-  {
-    label: "Starter",
-    amountNgn: 700,
-    creditedUsd: usdCents(10360), // ₦700 -> 10,360 credit value
-    badge: "Lowest entry",
-    description: "Best starting point",
-  },
-  {
-    label: "Basic",
-    amountNgn: 1500,
-    creditedUsd: usdCents(22050),
-    badge: "Small boost",
-    description: "A little more value",
-  },
-  {
-    label: "Standard",
-    amountNgn: 3000,
-    creditedUsd: usdCents(44100),
-    badge: "Popular",
-    description: "Balanced top-up",
-  },
-  {
-    label: "Plus",
-    amountNgn: 7500,
-    creditedUsd: usdCents(110250),
-    badge: "Better rate",
-    description: "Stronger package",
-  },
-  {
-    label: "Growth",
-    amountNgn: 15000,
-    creditedUsd: usdCents(217500),
-    badge: "Value pack",
-    description: "Good for regular use",
-  },
-  {
-    label: "Scale",
-    amountNgn: 50000,
-    creditedUsd: usdCents(675000),
-    badge: "Volume",
-    description: "Lower effective rate",
-  },
-  {
-    label: "Business",
-    amountNgn: 100000,
-    creditedUsd: usdCents(1320000),
-    badge: "High volume",
-    description: "Strong bulk value",
-  },
-  {
-    label: "Pro",
-    amountNgn: 250000,
-    creditedUsd: usdCents(3200000),
-    badge: "Bulk",
-    description: "For serious usage",
-  },
-  {
-    label: "Agency",
-    amountNgn: 500000,
-    creditedUsd: usdCents(6650000),
-    badge: "Agency",
-    description: "Large operational load",
-  },
-  {
-    label: "Enterprise",
-    amountNgn: 1000000,
-    creditedUsd: usdCents(13400000),
-    badge: "Enterprise",
-    description: "Big team workloads",
-  },
-  {
-    label: "Mega",
-    amountNgn: 2500000,
-    creditedUsd: usdCents(33250000),
-    badge: "Mega",
-    description: "Very high volume",
-  },
-  {
-    label: "Ultra",
-    amountNgn: 5000000,
-    creditedUsd: usdCents(67500000),
-    badge: "Maximum",
-    description: "Largest pack available",
-  },
-];
+function readPositiveNumber(value: string | null) {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function getManualUsdCredit(amountNgn: number) {
+  return Math.round(amountNgn * PACK_RATE_CENTS_PER_NGN * MANUAL_RATE_MULTIPLIER);
+}
+
+function getPackAccentClasses(accent: PricingPack["accent"], selected: boolean) {
+  if (selected) {
+    return "border-white/30 bg-white/15 text-white shadow-[0_18px_40px_rgba(59,130,246,0.22)]";
+  }
+
+  switch (accent) {
+    case "purple":
+      return "border-white/10 bg-gradient-to-br from-white/10 via-white/6 to-white/5 text-white";
+    case "emerald":
+      return "border-white/10 bg-gradient-to-br from-emerald-400/14 via-white/6 to-white/5 text-white";
+    case "gold":
+      return "border-white/10 bg-gradient-to-br from-amber-400/18 via-white/6 to-white/5 text-white";
+    default:
+      return "border-white/10 bg-gradient-to-br from-sky-400/14 via-white/6 to-white/5 text-white";
+  }
+}
+
+function PackIcon({ accent }: { accent: PricingPack["accent"] }) {
+  const common = "h-5 w-5";
+  if (accent === "emerald") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={common}>
+        <path
+          d="M12 3l3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  if (accent === "gold") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={common}>
+        <path
+          d="M12 2l1.7 5.2L19 9l-5.3 1.8L12 16l-1.7-5.2L5 9l5.3-1.8L12 2Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M5 19h14"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          opacity="0.6"
+        />
+      </svg>
+    );
+  }
+
+  if (accent === "purple") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={common}>
+        <path
+          d="M4 12h16M12 4v16"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <path
+          d="M8 8l8 8M16 8l-8 8"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          opacity="0.65"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={common}>
+      <path
+        d="M12 4v16m-6-6 6 6 6-6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function WorkspacePremiumGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+      <path
+        d="M12 3l3 4 5 .8-3.6 3.4.9 5.1L12 13.9 6.7 16.3l.9-5.1L4 7.8 9 7l3-4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LocalOfferGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+      <path
+        d="M20 13.5l-6.5 6.5L4 10.5V4h6.5L20 13.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 8.5h.01"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SavingsGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+      <path
+        d="M12 4c4 0 7 2.7 7 6.5S16 17 12 17s-7-2.7-7-6.5S8 4 12 4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path d="M12 7v7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9.5 9.5 12 7l2.5 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BoltGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+      <path
+        d="M13 2L4 14h6l-1 8 9-12h-6l1-8Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TicketFrame({
+  accent,
+  children,
+  selected = false,
+  sparkle = false,
+}: {
+  accent: PricingPack["accent"];
+  children: React.ReactNode;
+  selected?: boolean;
+  sparkle?: boolean;
+}) {
+  const base =
+    accent === "gold"
+      ? "from-amber-500/18 via-white/8 to-fuchsia-500/12"
+      : accent === "emerald"
+        ? "from-emerald-500/16 via-white/8 to-sky-500/10"
+        : accent === "purple"
+          ? "from-violet-500/18 via-white/8 to-blue-500/12"
+          : "from-sky-500/18 via-white/8 to-violet-500/12";
+
+  return (
+    <div
+      className={[
+        "group relative overflow-hidden rounded-[20px] border backdrop-blur-[12px] transition-all duration-300",
+        "shadow-[0_20px_55px_rgba(0,0,0,0.28)] hover:-translate-y-1 hover:scale-[1.03] hover:shadow-[0_24px_70px_rgba(56,189,248,0.18)]",
+        selected ? "border-white/30" : "border-white/10",
+        `bg-gradient-to-br ${base}`,
+      ].join(" ")}
+    >
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id={`ticket-${accent}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
+          </linearGradient>
+        </defs>
+
+        <rect
+          x="1.5"
+          y="1.5"
+          width="97"
+          height="97"
+          rx="20"
+          fill={`url(#ticket-${accent})`}
+          stroke="rgba(255,255,255,0.14)"
+          strokeWidth="1.2"
+        />
+
+        <circle cx="1.5" cy="50" r="7.6" fill="#0F172A" />
+        <circle cx="98.5" cy="50" r="7.6" fill="#0F172A" />
+
+        <line
+          x1="9"
+          y1="50"
+          x2="91"
+          y2="50"
+          stroke="rgba(255,255,255,0.22)"
+          strokeWidth="1"
+          strokeDasharray="4 4"
+        />
+      </svg>
+
+      {sparkle ? (
+        <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-1 text-amber-200">
+          <span className="text-lg">✦</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.2em]">Special</span>
+        </div>
+      ) : null}
+
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
+
+function PricingCard({
+  pack,
+  selected,
+  onBuyNow,
+}: {
+  pack: PricingPack;
+  selected: boolean;
+  onBuyNow: () => void;
+}) {
+  const icon =
+    pack.accent === "gold" ? (
+      <BoltGlyph />
+    ) : pack.accent === "emerald" ? (
+      <SavingsGlyph />
+    ) : pack.accent === "purple" ? (
+      <LocalOfferGlyph />
+    ) : (
+      <WorkspacePremiumGlyph />
+    );
+
+  return (
+    <TicketFrame accent={pack.accent} selected={selected} sparkle={pack.sparkle}>
+      <div className="flex h-full flex-col p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
+              {icon}
+            </span>
+            {pack.badge}
+          </div>
+
+          {pack.discount ? (
+            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
+              {pack.discount}
+            </div>
+          ) : (
+            <div className="h-8" />
+          )}
+        </div>
+
+        <div className="mt-5">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/65">
+            Credits
+          </div>
+          <div className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+            {formatCurrency(pack.creditsCents, "USD")}
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-2">
+          {pack.originalPriceNgn ? (
+            <div className="text-sm text-white/55 line-through">
+              {formatNaira(pack.originalPriceNgn)}
+            </div>
+          ) : (
+            <div className="text-sm text-white/55">One-time purchase</div>
+          )}
+
+          <div className="text-2xl font-black tracking-tight text-emerald-300">
+            {formatNaira(pack.priceNgn)}
+          </div>
+
+          <div className="text-xs leading-5 text-white/70">
+            {pack.originalPriceNgn ? "One-time purchase" : "No discount, best entry point"}
+          </div>
+        </div>
+
+        <div className="mt-auto pt-5">
+          <button
+            type="button"
+            onClick={onBuyNow}
+            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(59,130,246,0.35)] transition hover:brightness-110 hover:shadow-[0_18px_40px_rgba(139,92,246,0.35)] active:scale-[0.99]"
+          >
+            Buy Now
+          </button>
+        </div>
+      </div>
+    </TicketFrame>
+  );
+}
 
 export default function PaymentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const requestedAmountNgn = useMemo(
+    () => readPositiveNumber(searchParams.get("amountNgn")),
+    [searchParams],
+  );
+  const requestedAmountUsd = useMemo(
+    () => readPositiveNumber(searchParams.get("amountUsd")),
+    [searchParams],
+  );
+  const requestedMode = searchParams.get("mode");
+  const requestedLabel = searchParams.get("label")?.trim() || "Credit pack";
+  const requestedSource = searchParams.get("source")?.trim() || "pricing-page";
+
+  const requestedPack = useMemo(() => {
+    if (!requestedAmountNgn) return null;
+    return PACKS.find((pack) => pack.priceNgn === requestedAmountNgn) ?? null;
+  }, [requestedAmountNgn]);
+
+  const initialMode: "pack" | "manual" =
+    requestedMode === "manual"
+      ? "manual"
+      : requestedPack
+        ? "pack"
+        : requestedAmountNgn
+          ? "manual"
+          : "pack";
+
+  const initialPackId = requestedPack?.id ?? PACKS[0].id;
+  const initialManualAmount = initialMode === "manual" && requestedAmountNgn ? String(requestedAmountNgn) : "";
+
   const [email, setEmail] = useState("");
   const [emailLoading, setEmailLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [selectedAmountNgn, setSelectedAmountNgn] = useState<number>(
-    CREDITCACHE_PACKS[0]?.amountNgn ?? MIN_TOP_UP_NGN,
-  );
-  const [manualAmountNgn, setManualAmountNgn] = useState<string>("");
-  const [mode, setMode] = useState<"pack" | "manual">("pack");
+  const [selectedPackId, setSelectedPackId] = useState<PackId>(initialPackId);
+  const [mode, setMode] = useState<"pack" | "manual">(initialMode);
+  const [manualAmountNgn, setManualAmountNgn] = useState(initialManualAmount);
   const [error, setError] = useState<string | null>(null);
   const [verifyState, setVerifyState] = useState<VerifyState>({
     status: "idle",
@@ -159,26 +467,17 @@ export default function PaymentsPage() {
   const reference = searchParams.get("tx_ref") ?? searchParams.get("reference") ?? "";
   const transactionId = searchParams.get("transaction_id") ?? "";
 
+  const selectedPack = useMemo(
+    () => PACKS.find((pack) => pack.id === selectedPackId) ?? PACKS[0],
+    [selectedPackId],
+  );
+
   const manualAmount = Number(manualAmountNgn);
-  const isManualAmountValid =
-    Number.isFinite(manualAmount) && manualAmount >= MIN_TOP_UP_NGN;
+  const isManualAmountValid = Number.isFinite(manualAmount) && manualAmount >= MIN_MANUAL_TOP_UP_NGN;
+  const manualCredit = isManualAmountValid ? getManualUsdCredit(manualAmount) : 0;
 
-  const selectedPack = useMemo(() => {
-    return (
-      CREDITCACHE_PACKS.find((pack) => pack.amountNgn === selectedAmountNgn) ??
-      CREDITCACHE_PACKS[0]
-    );
-  }, [selectedAmountNgn]);
-
-  const activeAmountNgn =
-    mode === "manual" && isManualAmountValid
-      ? manualAmount
-      : selectedPack?.amountNgn ?? MIN_TOP_UP_NGN;
-
-  const activeCreditUsd =
-    mode === "manual" && isManualAmountValid
-      ? getManualCredit(activeAmountNgn)
-      : selectedPack?.creditedUsd ?? 0;
+  const activeAmountNgn = mode === "manual" && isManualAmountValid ? manualAmount : selectedPack.priceNgn;
+  const activeCreditUsd = mode === "manual" && isManualAmountValid ? manualCredit : selectedPack.creditsCents;
 
   const callbackUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -285,7 +584,12 @@ export default function PaymentsPage() {
     verifyPayment();
   }, [reference, transactionId, router]);
 
-  async function handleProceed() {
+  async function startCheckout(params: {
+    amountNgn: number;
+    amountUsd: number;
+    mode: "pack" | "manual";
+    label: string;
+  }) {
     setError(null);
 
     if (!email.trim()) {
@@ -293,12 +597,12 @@ export default function PaymentsPage() {
       return;
     }
 
-    if (mode === "manual" && !isManualAmountValid) {
-      setError(`Enter a valid manual amount of at least ₦${MIN_TOP_UP_NGN.toLocaleString("en-NG")}.`);
+    if (params.mode === "manual" && params.amountNgn < MIN_MANUAL_TOP_UP_NGN) {
+      setError(`Enter a valid manual amount of at least ₦${MIN_MANUAL_TOP_UP_NGN.toLocaleString("en-NG")}.`);
       return;
     }
 
-    if (!activeAmountNgn) {
+    if (params.amountNgn <= 0 || params.amountUsd <= 0) {
       setError("Choose a pack or enter a valid manual amount.");
       return;
     }
@@ -318,10 +622,12 @@ export default function PaymentsPage() {
         },
         credentials: "include",
         body: JSON.stringify({
-          amountNgn: activeAmountNgn,
-          mode,
+          amountNgn: params.amountNgn,
+          amountUsd: params.amountUsd,
+          mode: params.mode,
           callbackUrl,
-          label: mode === "manual" ? "Manual top up" : selectedPack?.label ?? "Top up",
+          label: params.label,
+          source: requestedSource,
         }),
       });
 
@@ -349,157 +655,114 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8 text-zinc-950 dark:bg-zinc-950 dark:text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight">CreditCache Payments</h1>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Complete the top-up with CreditCache checkout.
-            </p>
+    <div className="min-h-screen bg-[#0F172A] px-4 py-8 text-white">
+      <div className="mx-auto w-full max-w-7xl">
+        <div className="mx-auto max-w-3xl text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/75 backdrop-blur">
+            Premium Credit Store
           </div>
 
-          <Link
-            href="/admin"
-            className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200 dark:hover:bg-white/10"
-          >
-            Back
-          </Link>
+          <h1 className="mt-5 text-3xl font-black tracking-tight sm:text-5xl">
+            Choose a Credit Pack
+          </h1>
+
+          <p className="mt-4 text-sm leading-6 text-white/70 sm:text-base">
+            High-value packs for fixed pricing, plus a manual top-up option with a 15% higher rate and no discount.
+          </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <section className="rounded-3xl border border-black/5 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-            <div className="flex items-center justify-between gap-3">
+        <section className="mt-10">
+          <div className="grid gap-4 xl:grid-cols-5">
+            {PACKS.map((pack) => (
+              <PricingCard
+                key={pack.id}
+                pack={pack}
+                selected={selectedPack.id === pack.id && mode === "pack"}
+                onBuyNow={() => {
+                  setSelectedPackId(pack.id);
+                  setMode("pack");
+                  void startCheckout({
+                    amountNgn: pack.priceNgn,
+                    amountUsd: pack.creditsCents,
+                    mode: "pack",
+                    label: pack.badge,
+                  });
+                }}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-                  Selected top-up
+                <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+                  Manual top-up
                 </div>
-                <h2 className="mt-2 text-xl font-bold tracking-tight">
-                  {mode === "manual" ? "Manual top up" : selectedPack?.label ?? "Top up"}
-                </h2>
+                <h2 className="mt-2 text-2xl font-black tracking-tight">Custom amount</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
+                  Manual top-ups use the same base rate as the lowest pack, then add a 15% premium.
+                  No discount is applied.
+                </p>
               </div>
 
-              <div className="rounded-full border border-black/5 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-                CreditCache
+              <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
+                15% higher rate
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {CREDITCACHE_PACKS.map((pack) => {
-                const active = mode === "pack" && selectedAmountNgn === pack.amountNgn;
+            <div className="mt-6 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
+                  Naira amount
+                </span>
+                <input
+                  type="number"
+                  min={MIN_MANUAL_TOP_UP_NGN}
+                  step={1}
+                  value={manualAmountNgn}
+                  onChange={(e) => {
+                    setManualAmountNgn(e.target.value);
+                    setMode("manual");
+                  }}
+                  placeholder="e.g. 25000"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white outline-none transition placeholder:text-white/35 focus:border-white/30"
+                />
+              </label>
 
-                return (
-                  <button
-                    key={pack.label}
-                    type="button"
-                    onClick={() => {
-                      setSelectedAmountNgn(pack.amountNgn);
-                      setMode("pack");
-                    }}
-                    className={[
-                      "rounded-3xl border p-4 text-left transition",
-                      active
-                        ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950"
-                        : "border-black/5 bg-zinc-50 text-zinc-950 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-[10px] uppercase tracking-[0.18em] opacity-70">
-                        {pack.badge}
-                      </div>
-                      <div className="text-[10px] uppercase tracking-[0.18em] opacity-70">
-                        {pack.description}
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-2xl font-black tracking-tight">
-                      {formatCurrency(pack.creditedUsd, "USD")}
-                    </div>
-
-                    <div className="mt-1 text-sm font-semibold opacity-90">Credit</div>
-
-                    <div className="mt-3 text-xs opacity-70">{formatNaira(pack.amountNgn)}</div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-5 rounded-3xl border border-black/5 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-zinc-950 dark:text-white">
-                    Manual top up
-                  </div>
-                  <div className="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
-                    Enter any naira amount from ₦{MIN_TOP_UP_NGN.toLocaleString("en-NG")} and preview the manual quote.
-                  </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right sm:min-w-56">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-white/55">Preview</div>
+                <div className="mt-2 text-2xl font-black tracking-tight text-emerald-300">
+                  {isManualAmountValid ? formatCurrency(manualCredit, "USD") : "—"}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setMode("manual")}
-                  className={[
-                    "rounded-full px-4 py-2 text-xs font-semibold transition",
-                    mode === "manual"
-                      ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
-                      : "border border-zinc-200 text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/10",
-                  ].join(" ")}
-                >
-                  Use manual
-                </button>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                <label className="block">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-                    Naira amount
-                  </span>
-                  <input
-                    type="number"
-                    min={MIN_TOP_UP_NGN}
-                    step={1}
-                    value={manualAmountNgn}
-                    onChange={(e) => {
-                      setManualAmountNgn(e.target.value);
-                      setMode("manual");
-                    }}
-                    placeholder={`e.g. ${MIN_TOP_UP_NGN}`}
-                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
-                  />
-                </label>
-
-                <div className="rounded-2xl border border-black/5 bg-white px-4 py-3 text-right dark:border-white/10 dark:bg-zinc-950 sm:min-w-56">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-                    Manual credit
-                  </div>
-                  <div className="mt-1 text-2xl font-black tracking-tight text-zinc-950 dark:text-white">
-                    {isManualAmountValid
-                      ? formatCurrency(getManualCredit(activeAmountNgn), "USD")
-                      : "—"}
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                    {isManualAmountValid ? formatNaira(activeAmountNgn) : "Enter an amount"}
-                  </div>
+                <div className="mt-1 text-xs text-white/60">
+                  {isManualAmountValid ? formatNaira(manualAmount) : "Enter an amount"}
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-black/5 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-              Selected:{" "}
-              <span className="font-semibold">
-                {formatCurrency(activeCreditUsd, "USD")} credit
-              </span>
-            </div>
-
-            <div className="mt-2 rounded-2xl border border-black/5 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-              Logged-in email:{" "}
-              <span className="font-semibold">
-                {emailLoading ? "Loading..." : email || "Not found"}
-              </span>
+            <div className="mt-5 grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 sm:grid-cols-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-white/55">Price</div>
+                <div className="mt-1 text-lg font-bold">
+                  {isManualAmountValid ? formatNaira(manualAmount) : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-white/55">Credit</div>
+                <div className="mt-1 text-lg font-bold">
+                  {isManualAmountValid ? formatCurrency(manualCredit, "USD") : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-white/55">Discount</div>
+                <div className="mt-1 text-lg font-bold text-rose-300">None</div>
+              </div>
             </div>
 
             {error ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+              <div className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
                 {error}
               </div>
             ) : null}
@@ -507,52 +770,83 @@ export default function PaymentsPage() {
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={handleProceed}
+                onClick={() => {
+                  const amount = Number(manualAmountNgn);
+                  const credits = isManualAmountValid ? getManualUsdCredit(amount) : 0;
+                  setMode("manual");
+                  void startCheckout({
+                    amountNgn: amount,
+                    amountUsd: credits,
+                    mode: "manual",
+                    label: "Manual top up",
+                  });
+                }}
                 disabled={loading || emailLoading}
-                className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(59,130,246,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Opening checkout..." : "Proceed to payment"}
+                {loading ? "Opening checkout..." : "Buy manual top-up"}
               </button>
 
               <Link
                 href="/admin"
-                className="rounded-full border border-zinc-200 px-5 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5"
+                className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
                 Back to admin
               </Link>
             </div>
-          </section>
+          </div>
 
           <aside className="space-y-4">
-            <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-              <div className="text-sm font-semibold tracking-tight">Details</div>
-              <div className="mt-4 space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+                Checkout summary
+              </div>
+              <div className="mt-3 text-2xl font-black tracking-tight">
+                {mode === "manual" && isManualAmountValid
+                  ? "Manual top up"
+                  : requestedPack?.badge || selectedPack.badge}
+              </div>
+
+              <div className="mt-4 space-y-3 text-sm text-white/75">
                 <div className="flex items-center justify-between gap-3">
                   <span>Amount paid</span>
-                  <span className="font-semibold text-zinc-950 dark:text-white">
-                    {formatNaira(activeAmountNgn)}
+                  <span className="font-semibold text-white">
+                    {mode === "manual" && isManualAmountValid
+                      ? formatNaira(manualAmount)
+                      : formatNaira(selectedPack.priceNgn)}
                   </span>
                 </div>
+
                 <div className="flex items-center justify-between gap-3">
                   <span>Credit added</span>
-                  <span className="font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(activeCreditUsd, "USD")}
+                  <span className="font-semibold text-white">
+                    {mode === "manual" && isManualAmountValid
+                      ? formatCurrency(manualCredit, "USD")
+                      : formatCurrency(selectedPack.creditsCents, "USD")}
                   </span>
                 </div>
+
                 <div className="flex items-center justify-between gap-3">
-                  <span>Max balance</span>
-                  <span className="font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(CREDITCACHE_PACKS[CREDITCACHE_PACKS.length - 1].creditedUsd, "USD")}
+                  <span>Rate</span>
+                  <span className="font-semibold text-white/90">
+                    {mode === "manual" && isManualAmountValid ? "+15% premium" : "Fixed pack rate"}
                   </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span>Selected source</span>
+                  <span className="font-semibold text-white/90">{requestedSource}</span>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-              <div className="text-sm font-semibold tracking-tight">Payment status</div>
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+                Payment status
+              </div>
 
-              <div className="mt-4 rounded-2xl border border-black/5 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-950">
-                <div className="text-sm font-medium text-zinc-950 dark:text-white">
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="text-sm font-medium text-white">
                   {verifyState.status === "loading"
                     ? "Verifying..."
                     : verifyState.status === "success"
@@ -561,37 +855,41 @@ export default function PaymentsPage() {
                         ? "Not verified"
                         : "Waiting"}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                  {verifyState.message}
-                </p>
+                <p className="mt-2 text-sm leading-6 text-white/70">{verifyState.message}</p>
 
                 {verifyState.reference ? (
-                  <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-                    Reference: {verifyState.reference}
-                  </div>
+                  <div className="mt-3 text-xs text-white/55">Reference: {verifyState.reference}</div>
                 ) : null}
 
                 {typeof verifyState.paidAmountNgn === "number" ? (
-                  <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <div className="mt-2 text-xs text-white/55">
                     Paid amount: {formatNaira(verifyState.paidAmountNgn)}
                   </div>
                 ) : null}
 
                 {typeof verifyState.creditedUsd === "number" ? (
-                  <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <div className="mt-2 text-xs text-white/55">
                     Credited: {formatCurrency(verifyState.creditedUsd, "USD")}
                   </div>
                 ) : null}
               </div>
             </div>
 
-            <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-              <div className="text-sm font-semibold tracking-tight">Security</div>
-              <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                Checkout is created on the server, verification is done on the server, and webhooks are validated before processing.
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+                Notes
+              </div>
+              <p className="mt-3 text-sm leading-6 text-white/70">
+                Fixed packs keep their discounted pricing. Manual top-ups are always priced 15%
+                higher than the fixed pack rate and do not show a discount.
               </p>
             </div>
           </aside>
+        </section>
+
+        <div className="mt-10 text-center text-xs text-white/40">
+          If a pack is selected, its fixed price and credit amount are used. Manual amounts follow
+          the premium rate.
         </div>
       </div>
     </div>

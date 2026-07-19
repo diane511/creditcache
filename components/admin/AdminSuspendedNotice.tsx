@@ -1,21 +1,21 @@
 import { AdminAccessNotice } from "@/components/admin/AdminAccessNotice";
 
-type AdminPendingApprovalNoticeProps = {
+type AdminSuspendedNoticeProps = {
   email?: string | null;
   requestedPath?: string;
   title?: string;
   description?: string;
 };
 
-export function AdminPendingApprovalNotice({
+export function AdminSuspendedNotice({
   email,
   requestedPath = "/admin",
-  title = "Your admin account is waiting for approval",
-  description = "You are signed in, but a super admin still needs to approve your account before the admin workspace opens.",
-}: AdminPendingApprovalNoticeProps) {
+  title = "This admin account is suspended",
+  description = "Your account is currently suspended, so admin tabs are not available right now.",
+}: AdminSuspendedNoticeProps) {
   return (
     <AdminAccessNotice
-      variant="pending"
+      variant="suspended"
       email={email}
       requestedPath={requestedPath}
       title={title}
