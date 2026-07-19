@@ -1,3 +1,4 @@
+// main/app/api/admin/auth/signup/route.ts
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -36,14 +37,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
 
-    const {
-      legalName,
-      email,
-      phone,
-      password,
-      confirmPassword,
-      next,
-    } = (body ?? {}) as {
+    const { legalName, email, phone, password, confirmPassword, next } = (body ?? {}) as {
       legalName?: string;
       email?: string;
       phone?: string;
@@ -205,7 +199,7 @@ export async function POST(req: NextRequest) {
         code: "verification_required",
         message: isFirstAdmin
           ? "Super admin account created. Please verify your email before signing in."
-          : "Admin account created. Please verify your email before signing in.",
+          : "Admin account created. Please verify your email. After verification, your account will still wait for super admin approval.",
         nextPath: verificationPath,
         email: user.email,
         verificationRequired: true,

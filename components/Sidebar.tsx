@@ -63,7 +63,7 @@ const GUEST_ITEMS: NavItem[] = [
   { label: "Scam Center", href: "/scam-center" },
 ];
 
-const ADMIN_ITEMS: NavItem[] = [
+const ADMIN_ITEMS_BASE: NavItem[] = [
   { label: "Overview", href: "/admin", icon: DashboardIcon },
   { label: "Metrics", href: "/admin/metrics", icon: UsersIcon },
   { label: "Publish", href: "/admin/publish", icon: BriefcaseIcon },
@@ -72,8 +72,13 @@ const ADMIN_ITEMS: NavItem[] = [
   { label: "Users", href: "/admin/users", icon: ProfileIcon },
   { label: "Winner", href: "/admin/winner", icon: ShieldAlertIcon },
   { label: "Queue", href: "/admin/queue", icon: SettingsIcon },
-  { label: "Super admin", href: "/admin/super-admin", icon: UsersIcon },
 ];
+
+const SUPER_ADMIN_ITEM: NavItem = {
+  label: "Super admin",
+  href: "/admin/super-admin",
+  icon: UsersIcon,
+};
 
 function inferAuthModeFromPathname(pathname: string | null): AuthMode | null {
   if (!pathname) return null;
@@ -100,6 +105,10 @@ function inferAuthModeFromPathname(pathname: string | null): AuthMode | null {
 
 function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "SUPER_ADMIN";
+}
+
+function isSuperAdminRole(role?: string | null) {
+  return role === "SUPER_ADMIN";
 }
 
 function isDashboardActive(pathname: string, href: string) {
@@ -333,9 +342,9 @@ export function Sidebar({
   const effectiveAuthMode = authMode ?? inferAuthModeFromPathname(pathname);
   const isAdminArea = pathname.startsWith("/admin");
   const isAdminUser = Boolean(sessionUser && isAdminRole(sessionUser.role));
+  const isSuperAdminUser = Boolean(sessionUser && isSuperAdminRole(sessionUser.role));
 
-  const resolvedLoggedIn =
-    sessionChecked ? Boolean(sessionUser) : Boolean(isAuthenticated);
+  const resolvedLoggedIn = sessionChecked ? Boolean(sessionUser) : Boolean(isAuthenticated);
 
   const resolvedUserName =
     sessionUser?.displayName?.trim() ||
@@ -343,17 +352,15 @@ export function Sidebar({
     sessionUser?.email?.split("@")[0]?.trim() ||
     "Profile";
 
-  const effectiveSignInHref =
-    signInHref ?? (isAdminArea ? "/admin/ops-7c3a/signin" : "/signin");
+  const effectiveSignInHref = signInHref ?? (isAdminArea ? "/admin/ops-7c3a/signin" : "/signin");
 
-  const effectiveSignUpHref =
-    signUpHref ?? (isAdminArea ? "/admin/ops-7c3a/signup" : "/signup");
+  const effectiveSignUpHref = signUpHref ?? (isAdminArea ? "/admin/ops-7c3a/signup" : "/signup");
 
   const visibleSections = useMemo<NavSection[]>(() => {
     if (sections && sections.length > 0) {
       return [
         {
-          heading: "Navigation",
+          heading: "explore",
           items: sections.map((item) => ({
             label: item.label,
             href: item.href,
@@ -366,15 +373,19 @@ export function Sidebar({
       return [{ heading: "Explore", items: GUEST_ITEMS }];
     }
 
-    if (isAdminArea && isAdminUser) {
+    if (isAdminUser) {
+      const adminItems = isSuperAdminUser
+        ? [...ADMIN_ITEMS_BASE, SUPER_ADMIN_ITEM]
+        : ADMIN_ITEMS_BASE;
+
       return [
-        { heading: "Admin workspace", items: ADMIN_ITEMS },
+        { heading: "Admin workspace", items: adminItems },
         { heading: "Workspace", items: DASHBOARD_ITEMS },
       ];
     }
 
     return [{ heading: "Workspace", items: DASHBOARD_ITEMS }];
-  }, [sections, resolvedLoggedIn, isAdminArea, isAdminUser]);
+  }, [sections, resolvedLoggedIn, isAdminUser, isSuperAdminUser]);
 
   const closeMobile = () => onMobileClose?.();
 
@@ -531,9 +542,7 @@ export function Sidebar({
                   Access
                 </div>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {effectiveAuthMode === "sign-up"
-                    ? "Already have an account?"
-                    : "Need an account?"}
+                  {effectiveAuthMode === "sign-up" ? "Already have an account?" : "Need an account?"}
                 </p>
 
                 <div className="mt-3 flex gap-2">

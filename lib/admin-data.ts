@@ -205,6 +205,12 @@ function getDisplayUserRole(record: RawRecord): string {
 
 function getDisplayUserStatus(record: RawRecord): string {
   const raw = toStringValue(record.status ?? "").toUpperCase();
+  const verified = toBool(record.verified ?? record.isVerified ?? false);
+  const role = toStringValue(record.role ?? "").toUpperCase();
+
+  if ((raw === "PENDING" || role === "PENDING_ADMIN") && verified) {
+    return "Verified, awaiting approval";
+  }
 
   if (raw === "ACTIVE") return "Active";
   if (raw === "PENDING") return "Pending";

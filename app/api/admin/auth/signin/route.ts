@@ -1,3 +1,4 @@
+// main/app/api/admin/auth/signin/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -122,21 +123,8 @@ export async function POST(req: NextRequest) {
         {
           code: "email_not_verified",
           message: "Please verify your email before signing in.",
-          nextPath: buildEmailVerificationPath(
-            user.email,
-            next ?? "/admin",
-          ),
+          nextPath: buildEmailVerificationPath(user.email, next ?? "/admin"),
           email: user.email,
-        },
-        { status: 403 },
-      );
-    }
-
-    if (!isAdminRole(user.role)) {
-      return NextResponse.json(
-        {
-          code: "admin_access_required",
-          message: "This account does not have admin access.",
         },
         { status: 403 },
       );
@@ -165,6 +153,29 @@ export async function POST(req: NextRequest) {
           message: "Incorrect password.",
         },
         { status: 401 },
+      );
+    }
+
+    if (user.role === "PENDING_ADMIN" || !user.isApproved) {
+      return NextResponse.json(
+        {
+          code: "admin_pending_approval",
+          message:
+            "Your email is verified, but your admin account is still waiting for super admin approval. Please hold on until approved, check back later, or start a new chat with the super admin to appeal for approval.",
+          verified: true,
+          approved: false,
+        },
+        { status: 403 },
+      );
+    }
+
+    if (!isAdminRole(user.role)) {
+      return NextResponse.json(
+        {
+          code: "admin_access_required",
+          message: "This account does not have admin access.",
+        },
+        { status: 403 },
       );
     }
 
