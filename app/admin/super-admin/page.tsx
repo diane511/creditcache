@@ -1,3 +1,4 @@
+// main/app/admin/super-admin/page.tsx
 import { AdminSectionShell } from "@/components/admin/AdminSectionShell";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -461,63 +462,15 @@ export default async function SuperAdminPage() {
           <div className="mt-4 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
             <div className="flex items-center justify-between gap-3">
               <span>Login monitoring</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Enabled
-              </span>
+              <span className="font-medium text-zinc-950 dark:text-white">Enabled</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span>Admin action logs</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Enabled
-              </span>
+              <span className="font-medium text-zinc-950 dark:text-white">Enabled</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span>Critical approval trail</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Enabled
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span>Super admin demotion risk</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Active
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-black/5 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950/60">
-          <h3 className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
-            System settings
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            Keep moderation and publishing rules under super-admin control.
-          </p>
-
-          <div className="mt-4 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-            <div className="flex items-center justify-between gap-3">
-              <span>New admin creation</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Pending approval
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span>Content publishing</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Admin managed
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span>Role escalation</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Super admin only
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span>Super admin demotion</span>
-              <span className="font-medium text-zinc-950 dark:text-white">
-                Super admin only
-              </span>
+              <span className="font-medium text-zinc-950 dark:text-white">Enabled</span>
             </div>
           </div>
         </div>

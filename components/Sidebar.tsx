@@ -1,3 +1,4 @@
+// main/components/Sidebar.tsx
 "use client";
 
 import Link from "next/link";
@@ -353,18 +354,27 @@ export function Sidebar({
     "Profile";
 
   const effectiveSignInHref = signInHref ?? (isAdminArea ? "/admin/ops-7c3a/signin" : "/signin");
-
   const effectiveSignUpHref = signUpHref ?? (isAdminArea ? "/admin/ops-7c3a/signup" : "/signup");
 
   const visibleSections = useMemo<NavSection[]>(() => {
     if (sections && sections.length > 0) {
+      const items = sections.map((item) => ({
+        label: item.label,
+        href: item.href,
+      }));
+
+      if (
+        isAdminArea &&
+        isSuperAdminUser &&
+        !items.some((item) => item.href === SUPER_ADMIN_ITEM.href)
+      ) {
+        items.push(SUPER_ADMIN_ITEM);
+      }
+
       return [
         {
-          heading: "explore",
-          items: sections.map((item) => ({
-            label: item.label,
-            href: item.href,
-          })),
+          heading: isAdminArea ? "Admin workspace" : "explore",
+          items,
         },
       ];
     }
@@ -385,7 +395,7 @@ export function Sidebar({
     }
 
     return [{ heading: "Workspace", items: DASHBOARD_ITEMS }];
-  }, [sections, resolvedLoggedIn, isAdminUser, isSuperAdminUser]);
+  }, [sections, resolvedLoggedIn, isAdminArea, isAdminUser, isSuperAdminUser]);
 
   const closeMobile = () => onMobileClose?.();
 

@@ -1,3 +1,4 @@
+// main/app/admin/layout.tsx
 "use client";
 
 import type { ReactNode } from "react";

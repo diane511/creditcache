@@ -1,9 +1,11 @@
+// main/app/admin/page.tsx
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getCurrentUser, isAdminRole } from "@/lib/auth";
 import { AdminBalancePanel } from "@/components/admin/AdminBalancePanel";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
+import { AdminPendingApprovalNotice } from "@/components/admin/AdminPendingApprovalNotice";
 import { buildAdminNotifications } from "@/lib/admin-notifications";
 import { getAdminDashboardData, type CreditTopUpHistory } from "@/lib/admin-data";
 
@@ -479,6 +481,19 @@ export default async function AdminPage() {
 
   if (!sessionUser) {
     redirect("/auth/signin?next=/admin");
+  }
+
+  if (sessionUser.role === "PENDING_ADMIN" || sessionUser.isApproved === false) {
+    return (
+      <main className="min-h-screen w-full bg-background px-4 py-5 text-foreground sm:px-6 lg:px-8">
+        <AdminPendingApprovalNotice
+          email={sessionUser.email ?? null}
+          requestedPath="/admin"
+          title="Your admin account is waiting for approval"
+          description="You are signed in, but a super admin still needs to approve your account before the admin workspace opens."
+        />
+      </main>
+    );
   }
 
   if (!isAdminRole(sessionUser.role)) {
