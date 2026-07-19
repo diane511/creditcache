@@ -1,706 +1,708 @@
 generator client {
-provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-provider = "sqlite"
+  provider = "sqlite"
 }
 
 model User {
-id                        String              @id @default(cuid())
-legalName                 String?
-displayName               String
-username                  String              @unique
-email                     String              @unique
-phone                     String?             @unique
-passwordHash              String
-onboardingComplete        Boolean             @default(false)
-role                      Role                @default(USER)
-status                    UserStatus          @default(PENDING)
-isApproved                Boolean             @default(false)
-verified                  Boolean             @default(false)
-emailVerifiedAt           DateTime?
-phoneVerifiedAt           DateTime?
-passwordUpdatedAt         DateTime?
-lastLoginAt               DateTime?
-lastActiveAt              DateTime?
-failedLoginAttempts       Int                 @default(0)
-lockedUntil               DateTime?
-bio                       String?
-avatarUrl                 String?
-coverUrl                  String?
-dateOfBirth               DateTime?
-location                  String?
-occupation                String?
-company                   String?
-website                   String?
-portfolioUrl              String?
-linkedinUrl               String?
-xUrl                      String?
-creditBalance             Int                 @default(0)
-approvedById              String?
-invitedByAdminId          String?
-createdAt                 DateTime            @default(now())
-updatedAt                 DateTime            @updatedAt
-activityEvents            ActivityEvent[]     @relation("ActivityActor")
-adminSignupLinksCreated   AdminSignupLink[]   @relation("AdminSignupLinksCreated")
-reviewedApplications      Application[]       @relation("ApplicationReviewedBy")
-applications              Application[]
-auditLogs                 AuditLog[]          @relation("AuditActor")
-authAccounts              AuthAccount[]
-authSessions              AuthSession[]
-creditTopUps              CreditTopUp[]
-createdCreditTransfers    CreditTransfer[]    @relation("CreditTransferCreatedBy")
-receivedCreditTransfers   CreditTransfer[]    @relation("CreditTransferRecipient")
-sentCreditTransfers       CreditTransfer[]    @relation("CreditTransferSender")
-createdGuidancePosts      GuidancePost[]      @relation("GuidanceCreatedBy")
-metricSnapshots           MetricSnapshot[]    @relation("MetricRecordedBy")
-createdOpportunities      Opportunity[]       @relation("OpportunityCreatedBy")
-paymentMethodsUpdated     PaymentMethod[]     @relation("PaymentMethodsUpdatedBy")
-pendingItems              PendingItem[]
-reportsResolved           Report[]            @relation("ReportsResolved")
-reportsFiled              Report[]            @relation("ReportsFiled")
-reviewedQueueItems        ReviewQueueItem[]   @relation("QueueReviewedBy")
-savedCards                SavedPaymentCard[]
-settingsUpdated           SiteSetting[]       @relation("SettingUpdatedBy")
-socialLinks               SocialLink[]
-invitedByAdmin            User?               @relation("UserInvites", fields: [invitedByAdminId], references: [id])
-invitedUsers              User[]              @relation("UserInvites")
-approvedBy                User?               @relation("UserApprovals", fields: [approvedById], references: [id])
-approvedUsers             User[]              @relation("UserApprovals")
-vaultItems                VaultItem[]
-verificationTokens        VerificationToken[]
-winnerAssignmentsGiven    WinnerAssignment[]  @relation("WinnerAssignedBy")
-winnerAssignmentsReceived WinnerAssignment[]  @relation("WinnerUser")
-workExperiences           WorkExperience[]
+  id                        String              @id @default(cuid())
+  legalName                 String?
+  displayName               String
+  username                  String              @unique
+  email                     String              @unique
+  phone                     String?             @unique
+  passwordHash              String
+  onboardingComplete        Boolean             @default(false)
+  role                      Role                @default(USER)
+  status                    UserStatus          @default(PENDING)
+  isApproved                Boolean             @default(false)
+  verified                  Boolean             @default(false)
+  emailVerifiedAt           DateTime?
+  phoneVerifiedAt           DateTime?
+  passwordUpdatedAt         DateTime?
+  lastLoginAt               DateTime?
+  lastActiveAt              DateTime?
+  failedLoginAttempts       Int                 @default(0)
+  lockedUntil               DateTime?
+  bio                       String?
+  avatarUrl                 String?
+  coverUrl                  String?
+  dateOfBirth               DateTime?
+  location                  String?
+  occupation                String?
+  company                   String?
+  website                   String?
+  portfolioUrl              String?
+  linkedinUrl               String?
+  xUrl                      String?
+  creditBalance             Int                 @default(0)
+  approvedById              String?
+  invitedByAdminId          String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  activityEvents            ActivityEvent[]     @relation("ActivityActor")
+  adminSignupLinksCreated   AdminSignupLink[]   @relation("AdminSignupLinksCreated")
+  reviewedApplications      Application[]       @relation("ApplicationReviewedBy")
+  applications              Application[]
+  auditLogs                 AuditLog[]          @relation("AuditActor")
+  authAccounts              AuthAccount[]
+  authSessions              AuthSession[]
+  creditTopUps              CreditTopUp[]
+  createdCreditTransfers    CreditTransfer[]    @relation("CreditTransferCreatedBy")
+  receivedCreditTransfers   CreditTransfer[]    @relation("CreditTransferRecipient")
+  sentCreditTransfers       CreditTransfer[]    @relation("CreditTransferSender")
+  createdGuidancePosts      GuidancePost[]      @relation("GuidanceCreatedBy")
+  metricSnapshots           MetricSnapshot[]    @relation("MetricRecordedBy")
+  createdOpportunities      Opportunity[]       @relation("OpportunityCreatedBy")
+  paymentMethodsUpdated     PaymentMethod[]     @relation("PaymentMethodsUpdatedBy")
+  pendingItems              PendingItem[]
+  reportsResolved           Report[]            @relation("ReportsResolved")
+  reportsFiled              Report[]            @relation("ReportsFiled")
+  reviewedQueueItems        ReviewQueueItem[]   @relation("QueueReviewedBy")
+  savedCards                SavedPaymentCard[]
+  settingsUpdated           SiteSetting[]       @relation("SettingUpdatedBy")
+  socialLinks               SocialLink[]
+  invitedByAdmin            User?               @relation("UserInvites", fields: [invitedByAdminId], references: [id])
+  invitedUsers              User[]              @relation("UserInvites")
+  approvedBy                User?               @relation("UserApprovals", fields: [approvedById], references: [id])
+  approvedUsers             User[]              @relation("UserApprovals")
+  vaultItems                VaultItem[]
+  verificationTokens        VerificationToken[]
+  winnerAssignmentsGiven    WinnerAssignment[]  @relation("WinnerAssignedBy")
+  winnerAssignmentsReceived WinnerAssignment[]  @relation("WinnerUser")
+  workExperiences           WorkExperience[]
 
-@@index([role, status])
-@@index([email])
-@@index([username])
-@@index([phone])
-@@index([creditBalance])
-@@index([invitedByAdminId])
+  @@index([role, status])
+  @@index([email])
+  @@index([username])
+  @@index([phone])
+  @@index([creditBalance])
+  @@index([invitedByAdminId])
 }
 
 model AdminSignupLink {
-id          String    @id @default(cuid())
-token       String    @unique
-label       String?
-active      Boolean   @default(true)
-maxUses     Int?
-usedCount   Int       @default(0)
-lastUsedAt  DateTime?
-expiresAt   DateTime?
-createdById String
-createdAt   DateTime  @default(now())
-updatedAt   DateTime  @updatedAt
-createdBy   User      @relation("AdminSignupLinksCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  token       String    @unique
+  label       String?
+  active      Boolean   @default(true)
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   User      @relation("AdminSignupLinksCreated", fields: [createdById], references: [id], onDelete: Cascade)
 
-@@index([createdById])
-@@index([active, expiresAt])
+  @@index([createdById])
+  @@index([active, expiresAt])
 }
 
 model AuthAccount {
-id                String       @id @default(cuid())
-userId            String
-provider          AuthProvider
-providerAccountId String
-providerEmail     String?
-accessToken       String?
-refreshToken      String?
-idToken           String?
-scope             String?
-tokenType         String?
-expiresAt         Int?
-sessionState      String?
-providerData      Json?
-createdAt         DateTime     @default(now())
-updatedAt         DateTime     @updatedAt
-user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String       @id @default(cuid())
+  userId            String
+  provider          AuthProvider
+  providerAccountId String
+  providerEmail     String?
+  accessToken       String?
+  refreshToken      String?
+  idToken           String?
+  scope             String?
+  tokenType         String?
+  expiresAt         Int?
+  sessionState      String?
+  providerData      Json?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@unique([provider, providerAccountId])
-@@index([userId])
-@@index([provider])
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
 }
 
 model AuthSession {
-id           String   @id @default(cuid())
-userId       String
-sessionToken String   @unique
-expiresAt    DateTime
-ipAddress    String?
-userAgent    String?
-deviceName   String?
-createdAt    DateTime @default(now())
-updatedAt    DateTime @updatedAt
-user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  deviceName   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([userId])
-@@index([expiresAt])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model VerificationToken {
-id         String              @id @default(cuid())
-userId     String?
-identifier String
-token      String              @unique
-purpose    VerificationPurpose
-expiresAt  DateTime
-consumedAt DateTime?
-metadata   Json?
-createdAt  DateTime            @default(now())
-updatedAt  DateTime            @updatedAt
-user       User?               @relation(fields: [userId], references: [id])
+  id         String              @id @default(cuid())
+  userId     String?
+  identifier String
+  token      String              @unique
+  purpose    VerificationPurpose
+  expiresAt  DateTime
+  consumedAt DateTime?
+  metadata   Json?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  user       User?               @relation(fields: [userId], references: [id])
 
-@@index([identifier, purpose])
-@@index([userId])
-@@index([expiresAt])
+  @@index([identifier, purpose])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model SocialLink {
-id        String   @id @default(cuid())
-userId    String
-type      LinkType @default(OTHER)
-label     String
-url       String
-sortOrder Int      @default(0)
-isPublic  Boolean  @default(true)
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  type      LinkType @default(OTHER)
+  label     String
+  url       String
+  sortOrder Int      @default(0)
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([userId])
-@@index([type])
+  @@index([userId])
+  @@index([type])
 }
 
 model WorkExperience {
-id          String    @id @default(cuid())
-userId      String
-title       String
-company     String
-location    String?
-description String?
-startDate   DateTime?
-endDate     DateTime?
-isCurrent   Boolean   @default(false)
-sortOrder   Int       @default(0)
-createdAt   DateTime  @default(now())
-updatedAt   DateTime  @updatedAt
-user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  company     String
+  location    String?
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  isCurrent   Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([userId])
+  @@index([userId])
 }
 
 model PendingItem {
-id        String            @id @default(cuid())
-userId    String
-label     String
-status    PendingItemStatus @default(PENDING)
-note      String
-sortOrder Int               @default(0)
-createdAt DateTime          @default(now())
-updatedAt DateTime          @updatedAt
-user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String            @id @default(cuid())
+  userId    String
+  label     String
+  status    PendingItemStatus @default(PENDING)
+  note      String
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([userId])
-@@index([status])
+  @@index([userId])
+  @@index([status])
 }
 
 model SavedPaymentCard {
-id        String     @id @default(cuid())
-userId    String
-brand     String
-last4     String
-type      String
-expiry    String
-status    CardStatus @default(ACTIVE)
-isDefault Boolean    @default(false)
-createdAt DateTime   @default(now())
-updatedAt DateTime   @updatedAt
-user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String     @id @default(cuid())
+  userId    String
+  brand     String
+  last4     String
+  type      String
+  expiry    String
+  status    CardStatus @default(ACTIVE)
+  isDefault Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([userId])
-@@index([status])
+  @@index([userId])
+  @@index([status])
 }
 
 model PaymentMethod {
-id          String              @id @default(cuid())
-name        String
-note        String
-status      PaymentMethodStatus @default(ACTIVE)
-sortOrder   Int                 @default(0)
-updatedById String?
-createdAt   DateTime            @default(now())
-updatedAt   DateTime            @updatedAt
-updatedBy   User?               @relation("PaymentMethodsUpdatedBy", fields: [updatedById], references: [id])
+  id          String              @id @default(cuid())
+  name        String
+  note        String
+  status      PaymentMethodStatus @default(ACTIVE)
+  sortOrder   Int                 @default(0)
+  updatedById String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  updatedBy   User?               @relation("PaymentMethodsUpdatedBy", fields: [updatedById], references: [id])
 
-@@index([status])
+  @@index([status])
 }
 
 model VaultItem {
-id        String          @id @default(cuid())
-userId    String
-title     String
-note      String?
-fileUrl   String
-fileName  String
-fileType  String?
-status    VaultItemStatus @default(SAVED)
-sortOrder Int             @default(0)
-createdAt DateTime        @default(now())
-updatedAt DateTime        @updatedAt
-user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String          @id @default(cuid())
+  userId    String
+  title     String
+  note      String?
+  fileUrl   String
+  fileName  String
+  fileType  String?
+  status    VaultItemStatus @default(SAVED)
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([userId])
-@@index([status])
+  @@index([userId])
+  @@index([status])
 }
 
 model Opportunity {
-id               String             @id @default(cuid())
-slug             String             @unique
-title            String
-summary          String
-body             String?
-category         String
-amount           String?
-deadline         DateTime?
-status           ContentStatus      @default(DRAFT)
-isVerified       Boolean            @default(false)
-featured         Boolean            @default(false)
-publishedAt      DateTime?
-scheduledFor     DateTime?
-createdById      String
-createdAt        DateTime           @default(now())
-updatedAt        DateTime           @updatedAt
-applications     Application[]
-metricSnapshots  MetricSnapshot[]   @relation("OpportunityMetricSnapshots")
-createdBy        User               @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
-images           OpportunityImage[]
-tags             OpportunityTag[]
-queueItems       ReviewQueueItem[]  @relation("OpportunityQueueItems")
-winnerAssignment WinnerAssignment?
+  id               String             @id @default(cuid())
+  slug             String             @unique
+  title            String
+  summary          String
+  body             String?
+  category         String
+  amount           String?
+  deadline         DateTime?
+  status           ContentStatus      @default(DRAFT)
+  isVerified       Boolean            @default(false)
+  featured         Boolean            @default(false)
+  publishedAt      DateTime?
+  scheduledFor     DateTime?
+  createdById      String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  applications     Application[]
+  metricSnapshots  MetricSnapshot[]   @relation("OpportunityMetricSnapshots")
+  createdBy        User               @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
+  images           OpportunityImage[]
+  tags             OpportunityTag[]
+  queueItems       ReviewQueueItem[]  @relation("OpportunityQueueItems")
+  winnerAssignment WinnerAssignment?
 
-@@index([status])
-@@index([category])
-@@index([deadline])
-@@index([createdById])
+  @@index([status])
+  @@index([category])
+  @@index([deadline])
+  @@index([createdById])
 }
 
 model GuidancePost {
-id              String            @id @default(cuid())
-slug            String            @unique
-title           String
-category        String
-excerpt         String
-body            String
-readTime        String?
-status          ContentStatus     @default(DRAFT)
-featured        Boolean           @default(false)
-publishedAt     DateTime?
-scheduledFor    DateTime?
-createdById     String
-createdAt       DateTime          @default(now())
-updatedAt       DateTime          @updatedAt
-images          GuidanceImage[]
-createdBy       User              @relation("GuidanceCreatedBy", fields: [createdById], references: [id])
-tags            GuidanceTag[]
-metricSnapshots MetricSnapshot[]  @relation("GuidanceMetricSnapshots")
-queueItems      ReviewQueueItem[] @relation("GuidanceQueueItems")
+  id              String            @id @default(cuid())
+  slug            String            @unique
+  title           String
+  category        String
+  excerpt         String
+  body            String
+  readTime        String?
+  status          ContentStatus     @default(DRAFT)
+  featured        Boolean           @default(false)
+  publishedAt     DateTime?
+  scheduledFor    DateTime?
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  images          GuidanceImage[]
+  createdBy       User              @relation("GuidanceCreatedBy", fields: [createdById], references: [id])
+  tags            GuidanceTag[]
+  metricSnapshots MetricSnapshot[]  @relation("GuidanceMetricSnapshots")
+  queueItems      ReviewQueueItem[] @relation("GuidanceQueueItems")
 
-@@index([status])
-@@index([category])
-@@index([createdById])
+  @@index([status])
+  @@index([category])
+  @@index([createdById])
 }
 
 model Tag {
-id              String           @id @default(cuid())
-name            String           @unique
-createdAt       DateTime         @default(now())
-updatedAt       DateTime         @updatedAt
-guidanceTags    GuidanceTag[]
-opportunityTags OpportunityTag[]
+  id              String           @id @default(cuid())
+  name            String           @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  guidanceTags    GuidanceTag[]
+  opportunityTags OpportunityTag[]
 }
 
 model OpportunityTag {
-id            String      @id @default(cuid())
-opportunityId String
-tagId         String
-tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
-opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  opportunityId String
+  tagId         String
+  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
-@@unique([opportunityId, tagId])
-@@index([tagId])
+  @@unique([opportunityId, tagId])
+  @@index([tagId])
 }
 
 model GuidanceTag {
-id         String       @id @default(cuid())
-guidanceId String
-tagId      String
-tag        Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
-guidance   GuidancePost @relation(fields: [guidanceId], references: [id], onDelete: Cascade)
+  id         String       @id @default(cuid())
+  guidanceId String
+  tagId      String
+  tag        Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  guidance   GuidancePost @relation(fields: [guidanceId], references: [id], onDelete: Cascade)
 
-@@unique([guidanceId, tagId])
-@@index([tagId])
+  @@unique([guidanceId, tagId])
+  @@index([tagId])
 }
 
 model OpportunityImage {
-id            String      @id @default(cuid())
-opportunityId String
-url           String
-alt           String?
-sortOrder     Int         @default(0)
-opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  opportunityId String
+  url           String
+  alt           String?
+  sortOrder     Int         @default(0)
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
-@@index([opportunityId])
+  @@index([opportunityId])
 }
 
 model GuidanceImage {
-id         String       @id @default(cuid())
-guidanceId String
-url        String
-alt        String?
-sortOrder  Int          @default(0)
-guidance   GuidancePost @relation(fields: [guidanceId], references: [id], onDelete: Cascade)
+  id         String       @id @default(cuid())
+  guidanceId String
+  url        String
+  alt        String?
+  sortOrder  Int          @default(0)
+  guidance   GuidancePost @relation(fields: [guidanceId], references: [id], onDelete: Cascade)
 
-@@index([guidanceId])
+  @@index([guidanceId])
 }
 
 model Application {
-id            String            @id @default(cuid())
-opportunityId String
-userId        String
-status        ApplicationStatus @default(PENDING)
-coverNote     String?
-portfolioUrl  String?
-reviewNote    String?
-reviewedById  String?
-submittedAt   DateTime          @default(now())
-reviewedAt    DateTime?
-reviewedBy    User?             @relation("ApplicationReviewedBy", fields: [reviewedById], references: [id])
-user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-opportunity   Opportunity       @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  id            String            @id @default(cuid())
+  opportunityId String
+  userId        String
+  status        ApplicationStatus @default(PENDING)
+  coverNote     String?
+  portfolioUrl  String?
+  reviewNote    String?
+  reviewedById  String?
+  submittedAt   DateTime          @default(now())
+  createdAt     DateTime          @default(now())
+  reviewedAt    DateTime?
+  reviewedBy    User?             @relation("ApplicationReviewedBy", fields: [reviewedById], references: [id])
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity   Opportunity       @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
-@@unique([opportunityId, userId])
-@@index([status])
-@@index([opportunityId])
-@@index([userId])
+  @@unique([opportunityId, userId])
+  @@index([status])
+  @@index([opportunityId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model WinnerAssignment {
-id            String      @id @default(cuid())
-opportunityId String      @unique
-userId        String
-assignedById  String
-notes         String?
-assignedAt    DateTime    @default(now())
-assignedBy    User        @relation("WinnerAssignedBy", fields: [assignedById], references: [id])
-user          User        @relation("WinnerUser", fields: [userId], references: [id])
-opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  opportunityId String      @unique
+  userId        String
+  assignedById  String
+  notes         String?
+  assignedAt    DateTime    @default(now())
+  assignedBy    User        @relation("WinnerAssignedBy", fields: [assignedById], references: [id])
+  user          User        @relation("WinnerUser", fields: [userId], references: [id])
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
-@@index([userId])
-@@index([assignedById])
+  @@index([userId])
+  @@index([assignedById])
 }
 
 model ReviewQueueItem {
-id            String          @id @default(cuid())
-entityType    QueueEntityType
-entityId      String
-title         String
-details       String?
-status        QueueItemStatus @default(OPEN)
-priority      Int             @default(0)
-count         Int             @default(1)
-opportunityId String?
-guidanceId    String?
-reviewedById  String?
-resolvedAt    DateTime?
-createdAt     DateTime        @default(now())
-updatedAt     DateTime        @updatedAt
-reports       Report[]
-reviewedBy    User?           @relation("QueueReviewedBy", fields: [reviewedById], references: [id])
-guidance      GuidancePost?   @relation("GuidanceQueueItems", fields: [guidanceId], references: [id])
-opportunity   Opportunity?    @relation("OpportunityQueueItems", fields: [opportunityId], references: [id])
+  id            String          @id @default(cuid())
+  entityType    QueueEntityType
+  entityId      String
+  title         String
+  details       String?
+  status        QueueItemStatus @default(OPEN)
+  priority      Int             @default(0)
+  count         Int             @default(1)
+  opportunityId String?
+  guidanceId    String?
+  reviewedById  String?
+  resolvedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  reports       Report[]
+  reviewedBy    User?           @relation("QueueReviewedBy", fields: [reviewedById], references: [id])
+  guidance      GuidancePost?   @relation("GuidanceQueueItems", fields: [guidanceId], references: [id])
+  opportunity   Opportunity?    @relation("OpportunityQueueItems", fields: [opportunityId], references: [id])
 
-@@index([entityType, entityId])
-@@index([status])
-@@index([priority])
-@@index([opportunityId])
-@@index([guidanceId])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([priority])
+  @@index([opportunityId])
+  @@index([guidanceId])
 }
 
 model Report {
-id           String           @id @default(cuid())
-title        String
-details      String
-status       ReportStatus     @default(OPEN)
-filedById    String?
-resolvedById String?
-queueItemId  String?
-resolvedAt   DateTime?
-createdAt    DateTime         @default(now())
-updatedAt    DateTime         @updatedAt
-queueItem    ReviewQueueItem? @relation(fields: [queueItemId], references: [id])
-resolvedBy   User?            @relation("ReportsResolved", fields: [resolvedById], references: [id])
-filedBy      User?            @relation("ReportsFiled", fields: [filedById], references: [id])
+  id           String           @id @default(cuid())
+  title        String
+  details      String
+  status       ReportStatus     @default(OPEN)
+  filedById    String?
+  resolvedById String?
+  queueItemId  String?
+  resolvedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  queueItem    ReviewQueueItem? @relation(fields: [queueItemId], references: [id])
+  resolvedBy   User?            @relation("ReportsResolved", fields: [resolvedById], references: [id])
+  filedBy      User?            @relation("ReportsFiled", fields: [filedById], references: [id])
 
-@@index([status])
-@@index([filedById])
-@@index([resolvedById])
-@@index([queueItemId])
+  @@index([status])
+  @@index([filedById])
+  @@index([resolvedById])
+  @@index([queueItemId])
 }
 
 model AuditLog {
-id         String      @id @default(cuid())
-actorId    String?
-action     AuditAction
-entityType String
-entityId   String?
-metadata   Json?
-createdAt  DateTime    @default(now())
-actor      User?       @relation("AuditActor", fields: [actorId], references: [id])
+  id         String      @id @default(cuid())
+  actorId    String?
+  action     AuditAction
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+  actor      User?       @relation("AuditActor", fields: [actorId], references: [id])
 
-@@index([action])
-@@index([entityType, entityId])
-@@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([actorId])
 }
 
 model SiteSetting {
-key         String   @id
-value       String
-description String?
-updatedById String?
-updatedAt   DateTime @updatedAt
-updatedBy   User?    @relation("SettingUpdatedBy", fields: [updatedById], references: [id])
+  key         String   @id
+  value       String
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   User?    @relation("SettingUpdatedBy", fields: [updatedById], references: [id])
 }
 
 model MetricSnapshot {
-id            String        @id @default(cuid())
-key           String
-label         String
-value         Float
-unit          String?
-recordedById  String?
-opportunityId String?
-guidanceId    String?
-createdAt     DateTime      @default(now())
-updatedAt     DateTime      @updatedAt
-guidance      GuidancePost? @relation("GuidanceMetricSnapshots", fields: [guidanceId], references: [id])
-opportunity   Opportunity?  @relation("OpportunityMetricSnapshots", fields: [opportunityId], references: [id])
-recordedBy    User?         @relation("MetricRecordedBy", fields: [recordedById], references: [id])
+  id            String        @id @default(cuid())
+  key           String
+  label         String
+  value         Float
+  unit          String?
+  recordedById  String?
+  opportunityId String?
+  guidanceId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  guidance      GuidancePost? @relation("GuidanceMetricSnapshots", fields: [guidanceId], references: [id])
+  opportunity   Opportunity?  @relation("OpportunityMetricSnapshots", fields: [opportunityId], references: [id])
+  recordedBy    User?         @relation("MetricRecordedBy", fields: [recordedById], references: [id])
 
-@@index([key, createdAt])
-@@index([recordedById])
-@@index([opportunityId])
-@@index([guidanceId])
+  @@index([key, createdAt])
+  @@index([recordedById])
+  @@index([opportunityId])
+  @@index([guidanceId])
 }
 
 model ActivityEvent {
-id          String    @id @default(cuid())
-title       String
-meta        String
-tone        EventTone @default(PRIMARY)
-type        String
-entityType  String
-entityId    String?
-value       Float?
-metadata    Json?
-createdById String?
-createdAt   DateTime  @default(now())
-createdBy   User?     @relation("ActivityActor", fields: [createdById], references: [id])
+  id          String    @id @default(cuid())
+  title       String
+  meta        String
+  tone        EventTone @default(PRIMARY)
+  type        String
+  entityType  String
+  entityId    String?
+  value       Float?
+  metadata    Json?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  createdBy   User?     @relation("ActivityActor", fields: [createdById], references: [id])
 
-@@index([type, createdAt])
-@@index([entityType, entityId])
-@@index([createdById])
+  @@index([type, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdById])
 }
 
 model CreditTopUp {
-id                    String    @id @default(cuid())
-txRef                 String    @unique
-providerTransactionId String?
-userId                String
-email                 String
-label                 String
-mode                  String
-amountNgn             Int
-creditedUsd           Int
-currency              String    @default("NGN")
-status                String    @default("pending")
-providerStatus        String?
-verifiedAt            DateTime?
-creditedAt            DateTime?
-createdAt             DateTime  @default(now())
-updatedAt             DateTime  @updatedAt
-user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  txRef                 String    @unique
+  providerTransactionId String?
+  userId                String
+  email                 String
+  label                 String
+  mode                  String
+  amountNgn             Int
+  creditedUsd           Int
+  currency              String    @default("NGN")
+  status                String    @default("pending")
+  providerStatus        String?
+  verifiedAt            DateTime?
+  creditedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([userId])
-@@index([status])
-@@index([email])
-@@index([createdAt])
+  @@index([userId])
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
 }
 
 model CreditTransfer {
-id              String                @id @default(cuid())
-txRef           String                @unique
-senderId        String
-recipientId     String
-purpose         CreditTransferPurpose
-status          CreditTransferStatus  @default(COMPLETED)
-amountCents     Int
-note            String?
-senderLookup    String
-recipientLookup String
-createdById     String?
-completedAt     DateTime              @default(now())
-createdAt       DateTime              @default(now())
-updatedAt       DateTime              @updatedAt
-createdBy       User?                 @relation("CreditTransferCreatedBy", fields: [createdById], references: [id])
-recipient       User                  @relation("CreditTransferRecipient", fields: [recipientId], references: [id])
-sender          User                  @relation("CreditTransferSender", fields: [senderId], references: [id])
+  id              String                @id @default(cuid())
+  txRef           String                @unique
+  senderId        String
+  recipientId     String
+  purpose         CreditTransferPurpose
+  status          CreditTransferStatus  @default(COMPLETED)
+  amountCents     Int
+  note            String?
+  senderLookup    String
+  recipientLookup String
+  createdById     String?
+  completedAt     DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  createdBy       User?                 @relation("CreditTransferCreatedBy", fields: [createdById], references: [id])
+  recipient       User                  @relation("CreditTransferRecipient", fields: [recipientId], references: [id])
+  sender          User                  @relation("CreditTransferSender", fields: [senderId], references: [id])
 
-@@index([senderId])
-@@index([recipientId])
-@@index([purpose])
-@@index([status])
-@@index([createdAt])
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([purpose])
+  @@index([status])
+  @@index([createdAt])
 }
 
 enum Role {
-SUPER_ADMIN
-ADMIN
-PENDING_ADMIN
-USER
+  SUPER_ADMIN
+  ADMIN
+  PENDING_ADMIN
+  USER
 }
 
 enum UserStatus {
-PENDING
-ACTIVE
-SUSPENDED
+  PENDING
+  ACTIVE
+  SUSPENDED
 }
 
 enum ContentStatus {
-DRAFT
-SCHEDULED
-PUBLISHED
-ARCHIVED
-REVIEW
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+  REVIEW
 }
 
 enum ApplicationStatus {
-PENDING
-SHORTLISTED
-REJECTED
-ACCEPTED
+  PENDING
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
 }
 
 enum QueueItemStatus {
-OPEN
-IN_REVIEW
-RESOLVED
+  OPEN
+  IN_REVIEW
+  RESOLVED
 }
 
 enum QueueEntityType {
-USER
-OPPORTUNITY
-GUIDANCE
-APPLICATION
-WINNER
-REPORT
-VAULT_ITEM
+  USER
+  OPPORTUNITY
+  GUIDANCE
+  APPLICATION
+  WINNER
+  REPORT
+  VAULT_ITEM
 }
 
 enum AuditAction {
-LOGIN
-LOGOUT
-CREATE
-UPDATE
-PUBLISH
-ARCHIVE
-APPROVE
-REJECT
-ASSIGN_WINNER
-SUSPEND
-PROMOTE
-DEMOTE
-DELETE
-UPLOAD
-PAY
-REFUND
-TRANSFER
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  PUBLISH
+  ARCHIVE
+  APPROVE
+  REJECT
+  ASSIGN_WINNER
+  SUSPEND
+  PROMOTE
+  DEMOTE
+  DELETE
+  UPLOAD
+  PAY
+  REFUND
+  TRANSFER
 }
 
 enum EventTone {
-PRIMARY
-GOOD
-WARN
+  PRIMARY
+  GOOD
+  WARN
 }
 
 enum LinkType {
-WEBSITE
-PORTFOLIO
-LINKEDIN
-X
-GITHUB
-INSTAGRAM
-OTHER
+  WEBSITE
+  PORTFOLIO
+  LINKEDIN
+  X
+  GITHUB
+  INSTAGRAM
+  OTHER
 }
 
 enum PendingItemStatus {
-PENDING
-IN_PROGRESS
-COMPLETED
+  PENDING
+  IN_PROGRESS
+  COMPLETED
 }
 
 enum CardStatus {
-ACTIVE
-EXPIRED
-DISABLED
+  ACTIVE
+  EXPIRED
+  DISABLED
 }
 
 enum PaymentMethodStatus {
-ACTIVE
-INACTIVE
-COMING_SOON
+  ACTIVE
+  INACTIVE
+  COMING_SOON
 }
 
 enum VaultItemStatus {
-SAVED
-ARCHIVED
-SHARED
+  SAVED
+  ARCHIVED
+  SHARED
 }
 
 enum ReportStatus {
-OPEN
-UNDER_REVIEW
-RESOLVED
-DISMISSED
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
 }
 
 enum AuthProvider {
-GOOGLE
-CREDIT_CACHE
-CREDENTIALS
+  GOOGLE
+  CREDIT_CACHE
+  CREDENTIALS
 }
 
 enum VerificationPurpose {
-SIGN_UP
-SIGN_IN
-PASSWORD_RESET
-EMAIL_VERIFY
-PHONE_VERIFY
+  SIGN_UP
+  SIGN_IN
+  PASSWORD_RESET
+  EMAIL_VERIFY
+  PHONE_VERIFY
 }
 
 enum CreditTransferPurpose {
-WINNING
-SWEEPSTAKE
-SCHOLARSHIP
-SPONSORSHIP
-FUNDING
-NORMAL_TRANSFER
+  WINNING
+  SWEEPSTAKE
+  SCHOLARSHIP
+  SPONSORSHIP
+  FUNDING
+  NORMAL_TRANSFER
 }
 
 enum CreditTransferStatus {
-PENDING
-COMPLETED
-FAILED
-REVERSED
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
 }
