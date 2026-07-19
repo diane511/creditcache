@@ -48,6 +48,11 @@ function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "SUPER_ADMIN";
 }
 
+function isPendingAdmin(user: { role?: string | null; isApproved?: boolean | null } | null | undefined) {
+  if (!user) return false;
+  return user.role === "PENDING_ADMIN" || user.isApproved === false;
+}
+
 function redirectTo(urlPath: string, request: NextRequest, next?: string) {
   const url = request.nextUrl.clone();
   url.pathname = urlPath;
@@ -97,6 +102,10 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/admin", request.url));
       }
 
+      if (user && isPendingAdmin(user)) {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+
       if (user && !isAdminRole(user.role)) {
         return hideAdminPath(request);
       }
@@ -111,10 +120,14 @@ export async function proxy(request: NextRequest) {
 
   const user = await getUserFromSession(request);
 
-  // Admin area: fail closed for non-admins so the route is harder to probe
+  // Admin area: allow pending admins through so the app can show the approval page
   if (isAdminPath(pathname)) {
     if (!user) {
       return redirectTo(ADMIN_SIGNIN_PATH, request, fullPath);
+    }
+
+    if (isPendingAdmin(user)) {
+      return NextResponse.next();
     }
 
     if (!isAdminRole(user.role)) {
