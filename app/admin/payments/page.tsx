@@ -3,11 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  CREDITCACHE_PACKS,
-  getManualCredit,
-  MAX_CREDIT_USD,
-} from "@/lib/creditcache-payments";
+import { getManualCredit } from "@/lib/creditcache-payments";
 
 type VerifyState = {
   status: "idle" | "loading" | "success" | "failed";
@@ -17,11 +13,18 @@ type VerifyState = {
   creditedUsd?: number;
 };
 
-const PRICE_REDUCTION_PERCENT = 0.8;
-const PRICE_MULTIPLIER = 1 - PRICE_REDUCTION_PERCENT; // 20% of current price
+type CreditPack = {
+  label: string;
+  amountNgn: number;
+  creditedUsd: number; // stored as cents for the existing USD formatter
+  badge: string;
+  description: string;
+};
 
-function apply80PercentReduction(amount: number) {
-  return Math.max(1, Math.round(amount * PRICE_MULTIPLIER));
+const MIN_TOP_UP_NGN = 700;
+
+function usdCents(value: number) {
+  return Math.round(value * 100);
 }
 
 function formatCurrency(cents: number, currencyCode = "USD") {
@@ -48,6 +51,93 @@ function formatNaira(amount: number) {
   }
 }
 
+const CREDITCACHE_PACKS: CreditPack[] = [
+  {
+    label: "Starter",
+    amountNgn: 700,
+    creditedUsd: usdCents(10360), // ₦700 -> 10,360 credit value
+    badge: "Lowest entry",
+    description: "Best starting point",
+  },
+  {
+    label: "Basic",
+    amountNgn: 1500,
+    creditedUsd: usdCents(22050),
+    badge: "Small boost",
+    description: "A little more value",
+  },
+  {
+    label: "Standard",
+    amountNgn: 3000,
+    creditedUsd: usdCents(44100),
+    badge: "Popular",
+    description: "Balanced top-up",
+  },
+  {
+    label: "Plus",
+    amountNgn: 7500,
+    creditedUsd: usdCents(110250),
+    badge: "Better rate",
+    description: "Stronger package",
+  },
+  {
+    label: "Growth",
+    amountNgn: 15000,
+    creditedUsd: usdCents(217500),
+    badge: "Value pack",
+    description: "Good for regular use",
+  },
+  {
+    label: "Scale",
+    amountNgn: 50000,
+    creditedUsd: usdCents(675000),
+    badge: "Volume",
+    description: "Lower effective rate",
+  },
+  {
+    label: "Business",
+    amountNgn: 100000,
+    creditedUsd: usdCents(1320000),
+    badge: "High volume",
+    description: "Strong bulk value",
+  },
+  {
+    label: "Pro",
+    amountNgn: 250000,
+    creditedUsd: usdCents(3200000),
+    badge: "Bulk",
+    description: "For serious usage",
+  },
+  {
+    label: "Agency",
+    amountNgn: 500000,
+    creditedUsd: usdCents(6650000),
+    badge: "Agency",
+    description: "Large operational load",
+  },
+  {
+    label: "Enterprise",
+    amountNgn: 1000000,
+    creditedUsd: usdCents(13400000),
+    badge: "Enterprise",
+    description: "Big team workloads",
+  },
+  {
+    label: "Mega",
+    amountNgn: 2500000,
+    creditedUsd: usdCents(33250000),
+    badge: "Mega",
+    description: "Very high volume",
+  },
+  {
+    label: "Ultra",
+    amountNgn: 5000000,
+    creditedUsd: usdCents(67500000),
+    badge: "Maximum",
+    description: "Largest pack available",
+  },
+];
+
 export default function PaymentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,7 +146,7 @@ export default function PaymentsPage() {
   const [emailLoading, setEmailLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [selectedAmountNgn, setSelectedAmountNgn] = useState<number>(
-    CREDITCACHE_PACKS[0]?.amountNgn ?? 500,
+    CREDITCACHE_PACKS[0]?.amountNgn ?? MIN_TOP_UP_NGN,
   );
   const [manualAmountNgn, setManualAmountNgn] = useState<string>("");
   const [mode, setMode] = useState<"pack" | "manual">("pack");
@@ -70,7 +160,8 @@ export default function PaymentsPage() {
   const transactionId = searchParams.get("transaction_id") ?? "";
 
   const manualAmount = Number(manualAmountNgn);
-  const isManualAmountValid = Number.isFinite(manualAmount) && manualAmount > 0;
+  const isManualAmountValid =
+    Number.isFinite(manualAmount) && manualAmount >= MIN_TOP_UP_NGN;
 
   const selectedPack = useMemo(() => {
     return (
@@ -79,18 +170,15 @@ export default function PaymentsPage() {
     );
   }, [selectedAmountNgn]);
 
-  const discountedSelectedAmountNgn = apply80PercentReduction(selectedPack?.amountNgn ?? 0);
-  const discountedSelectedCreditUsd = apply80PercentReduction(selectedPack?.creditedUsd ?? 0);
-
   const activeAmountNgn =
     mode === "manual" && isManualAmountValid
-      ? apply80PercentReduction(manualAmount)
-      : discountedSelectedAmountNgn;
+      ? manualAmount
+      : selectedPack?.amountNgn ?? MIN_TOP_UP_NGN;
 
   const activeCreditUsd =
     mode === "manual" && isManualAmountValid
       ? getManualCredit(activeAmountNgn)
-      : discountedSelectedCreditUsd;
+      : selectedPack?.creditedUsd ?? 0;
 
   const callbackUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -205,13 +293,13 @@ export default function PaymentsPage() {
       return;
     }
 
-    if (!activeAmountNgn) {
-      setError("Choose a pack or enter a valid manual amount.");
+    if (mode === "manual" && !isManualAmountValid) {
+      setError(`Enter a valid manual amount of at least ₦${MIN_TOP_UP_NGN.toLocaleString("en-NG")}.`);
       return;
     }
 
-    if (mode === "manual" && !isManualAmountValid) {
-      setError("Enter a valid manual amount.");
+    if (!activeAmountNgn) {
+      setError("Choose a pack or enter a valid manual amount.");
       return;
     }
 
@@ -299,8 +387,6 @@ export default function PaymentsPage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {CREDITCACHE_PACKS.map((pack) => {
                 const active = mode === "pack" && selectedAmountNgn === pack.amountNgn;
-                const reducedAmountNgn = apply80PercentReduction(pack.amountNgn);
-                const reducedCreditUsd = apply80PercentReduction(pack.creditedUsd);
 
                 return (
                   <button
@@ -327,14 +413,12 @@ export default function PaymentsPage() {
                     </div>
 
                     <div className="mt-3 text-2xl font-black tracking-tight">
-                      {formatCurrency(reducedCreditUsd, "USD")}
+                      {formatCurrency(pack.creditedUsd, "USD")}
                     </div>
 
                     <div className="mt-1 text-sm font-semibold opacity-90">Credit</div>
 
-                    <div className="mt-3 text-xs opacity-70">
-                      {formatNaira(reducedAmountNgn)}
-                    </div>
+                    <div className="mt-3 text-xs opacity-70">{formatNaira(pack.amountNgn)}</div>
                   </button>
                 );
               })}
@@ -347,7 +431,7 @@ export default function PaymentsPage() {
                     Manual top up
                   </div>
                   <div className="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
-                    Enter any naira amount to preview a much lower CreditCache quote.
+                    Enter any naira amount from ₦{MIN_TOP_UP_NGN.toLocaleString("en-NG")} and preview the manual quote.
                   </div>
                 </div>
 
@@ -372,14 +456,14 @@ export default function PaymentsPage() {
                   </span>
                   <input
                     type="number"
-                    min={1}
+                    min={MIN_TOP_UP_NGN}
                     step={1}
                     value={manualAmountNgn}
                     onChange={(e) => {
                       setManualAmountNgn(e.target.value);
                       setMode("manual");
                     }}
-                    placeholder="e.g. 7500"
+                    placeholder={`e.g. ${MIN_TOP_UP_NGN}`}
                     className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
                   />
                 </label>
@@ -389,7 +473,9 @@ export default function PaymentsPage() {
                     Manual credit
                   </div>
                   <div className="mt-1 text-2xl font-black tracking-tight text-zinc-950 dark:text-white">
-                    {isManualAmountValid ? formatCurrency(getManualCredit(activeAmountNgn), "USD") : "—"}
+                    {isManualAmountValid
+                      ? formatCurrency(getManualCredit(activeAmountNgn), "USD")
+                      : "—"}
                   </div>
                   <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                     {isManualAmountValid ? formatNaira(activeAmountNgn) : "Enter an amount"}
@@ -456,7 +542,7 @@ export default function PaymentsPage() {
                 <div className="flex items-center justify-between gap-3">
                   <span>Max balance</span>
                   <span className="font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(apply80PercentReduction(MAX_CREDIT_USD * 100), "USD")}
+                    {formatCurrency(CREDITCACHE_PACKS[CREDITCACHE_PACKS.length - 1].creditedUsd, "USD")}
                   </span>
                 </div>
               </div>
