@@ -83,13 +83,13 @@ const NOTIFICATION_TYPES: NotificationType[] = [
 ========================================================= */
 
 function parseReadKeys(raw: string | null): Set<string> {
-  if (!raw) return new Set();
+  if (!raw) return new Set<string>();
 
   try {
     const parsed: unknown = JSON.parse(raw);
 
     if (!Array.isArray(parsed)) {
-      return new Set();
+      return new Set<string>();
     }
 
     return new Set(
@@ -98,13 +98,13 @@ function parseReadKeys(raw: string | null): Set<string> {
       )
     );
   } catch {
-    return new Set();
+    return new Set<string>();
   }
 }
 
 function loadStoredReadKeys(): Set<string> {
   if (typeof window === "undefined") {
-    return new Set();
+    return new Set<string>();
   }
 
   try {
@@ -112,7 +112,7 @@ function loadStoredReadKeys(): Set<string> {
       window.localStorage.getItem(STORAGE_KEY)
     );
   } catch {
-    return new Set();
+    return new Set<string>();
   }
 }
 
@@ -125,7 +125,7 @@ function persistReadKeys(keys: Set<string>) {
       JSON.stringify(Array.from(keys))
     );
   } catch {
-    // Storage may be unavailable in private browsing.
+    // Ignore localStorage failures.
   }
 }
 
@@ -134,17 +134,16 @@ function persistReadKeys(keys: Set<string>) {
 ========================================================= */
 
 function makeKey(item: NotificationItem): string {
-  if (item.id?.trim()) {
-    return item.id.trim();
-  }
-
-  return [
-    item.title,
-    item.message,
-    item.time,
-    item.type ?? "",
-    item.label ?? "",
-  ].join("|");
+  return (
+    item.id?.trim() ||
+    [
+      item.title,
+      item.message,
+      item.time,
+      item.type ?? "",
+      item.label ?? "",
+    ].join("|")
+  );
 }
 
 /* =========================================================
@@ -211,7 +210,7 @@ function normalizeCombinedItems(
 }
 
 /* =========================================================
-   ICONS
+   RESPONSIVE ICONS
 ========================================================= */
 
 function NotificationIcon({
@@ -290,6 +289,240 @@ function NotificationIcon({
 }
 
 /* =========================================================
+   FILTER CHIP
+========================================================= */
+
+function TypeChip({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        "inline-flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold capitalize transition",
+        active
+          ? "bg-emerald-600 text-white shadow-sm"
+          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10",
+      ].join(" ")}
+    >
+      <span>{label}</span>
+
+      {/* Only unread notifications are counted */}
+      <span
+        className={[
+          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold",
+          active
+            ? "bg-white/20 text-white"
+            : count > 0
+              ? "bg-rose-500 text-white"
+              : "bg-zinc-200 text-zinc-500 dark:bg-white/10 dark:text-zinc-400",
+        ].join(" ")}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+/* =========================================================
+   NOTIFICATION ROW
+   WHATSAPP-INSPIRED FLAT LIST DESIGN
+========================================================= */
+
+function NotificationRow({
+  item,
+  onMarkRead,
+}: {
+  item: CombinedItem;
+  onMarkRead: (key: string) => void;
+}) {
+  const unread = !item.read;
+
+  const iconColors: Record<NotificationType, string> = {
+    security:
+      "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+    grant:
+      "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+    announcement:
+      "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+    account:
+      "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400",
+    transfer:
+      "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400",
+    receipt:
+      "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
+  };
+
+  return (
+    <div
+      className={[
+        "group flex min-w-0 items-center gap-3 px-3 py-3 transition-colors sm:gap-4 sm:px-5 sm:py-4",
+        "hover:bg-zinc-100/70 dark:hover:bg-white/[0.04]",
+        unread ? "bg-white dark:bg-zinc-950" : "bg-transparent",
+      ].join(" ")}
+    >
+      {/* Notification icon / avatar */}
+      <div className="relative shrink-0">
+        <div
+          className={[
+            "flex h-11 w-11 items-center justify-center rounded-full sm:h-12 sm:w-12",
+            unread
+              ? iconColors[item.type]
+              : "bg-zinc-100 text-zinc-400 dark:bg-white/5 dark:text-zinc-500",
+          ].join(" ")}
+        >
+          <NotificationIcon
+            type={item.type}
+            className="h-5 w-5 sm:h-[22px] sm:w-[22px]"
+          />
+        </div>
+
+        {/* Unread indicator */}
+        {unread && (
+          <span
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-rose-500 dark:border-zinc-950"
+            aria-label="Unread notification"
+            title="Unread"
+          />
+        )}
+      </div>
+
+      {/* Main notification content */}
+      <Link
+        href={item.href}
+        onClick={() => onMarkRead(item.key)}
+        aria-label={`Open ${item.title}`}
+        className="min-w-0 flex-1 outline-none"
+      >
+        {/* Title and time */}
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <h3
+            title={item.title}
+            className={[
+              "min-w-0 flex-1 truncate transition-colors",
+              unread
+                ? "text-sm font-bold text-zinc-950 dark:text-white sm:text-[15px]"
+                : "text-xs font-medium text-zinc-500 dark:text-zinc-400 sm:text-sm",
+            ].join(" ")}
+          >
+            {item.title}
+          </h3>
+
+          <span
+            className={[
+              "shrink-0 whitespace-nowrap text-[10px] tabular-nums sm:text-xs",
+              unread
+                ? "font-semibold text-emerald-700 dark:text-emerald-400"
+                : "font-medium text-zinc-400 dark:text-zinc-500",
+            ].join(" ")}
+          >
+            {item.time}
+          </span>
+        </div>
+
+        {/* Message preview */}
+        <div className="mt-1 flex min-w-0 items-center justify-between gap-3">
+          <p
+            className={[
+              "min-w-0 flex-1 truncate text-xs leading-5 transition-colors sm:text-sm",
+              unread
+                ? "font-medium text-zinc-600 dark:text-zinc-300"
+                : "font-normal text-zinc-400 dark:text-zinc-500",
+            ].join(" ")}
+          >
+            {item.message}
+          </p>
+
+          {/* Unread message badge */}
+          {unread && (item.count ?? 0) > 1 ? (
+            <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">
+              {item.count}
+            </span>
+          ) : !unread ? (
+            <span
+              className="shrink-0 text-zinc-400 dark:text-zinc-600"
+              title="Read"
+              aria-label="Read"
+            >
+              <NotificationIcon
+                type="check"
+                className="h-3.5 w-3.5"
+              />
+            </span>
+          ) : null}
+        </div>
+
+        {/* Optional label */}
+        {item.label && (
+          <div className="mt-1.5">
+            <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
+              {item.label}
+            </span>
+          </div>
+        )}
+
+        {/* Notification details */}
+        {item.details.length > 0 && (
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {item.details.map((detail) => (
+              <div
+                key={`${item.key}-${detail.label}`}
+                className="min-w-0 rounded-lg bg-zinc-100 px-3 py-2 dark:bg-white/5"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {detail.label}
+                </p>
+
+                <p className="mt-1 break-words text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                  {detail.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Link>
+
+      {/* PDF attachment */}
+      {item.attachmentUrl && (
+        <a
+          href={item.attachmentUrl}
+          download
+          onClick={() => onMarkRead(item.key)}
+          title={item.attachmentLabel || "Download attachment"}
+          aria-label={item.attachmentLabel || "Download attachment"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-5 w-5"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 3v10m0 0 3.5-3.5M12 13l-3.5-3.5M5 14.5V18a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18v-3.5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </a>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
    EMPTY STATE
 ========================================================= */
 
@@ -301,8 +534,8 @@ function EmptyState({
   message: string;
 }) {
   return (
-    <div className="rounded-3xl border border-dashed border-zinc-300 bg-white px-5 py-14 text-center dark:border-white/15 dark:bg-zinc-950 sm:px-8">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-300">
+    <div className="px-5 py-16 text-center sm:px-8">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -324,7 +557,7 @@ function EmptyState({
         </svg>
       </div>
 
-      <h3 className="text-base font-bold text-zinc-950 dark:text-white sm:text-lg">
+      <h3 className="text-base font-semibold text-zinc-900 dark:text-white sm:text-lg">
         {title}
       </h3>
 
@@ -332,229 +565,6 @@ function EmptyState({
         {message}
       </p>
     </div>
-  );
-}
-
-/* =========================================================
-   FILTER CHIP
-========================================================= */
-
-function TypeChip({
-  active,
-  onClick,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={[
-        "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-semibold capitalize transition sm:px-3.5 sm:text-xs",
-        active
-          ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950"
-          : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-white/15 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-white/10",
-      ].join(" ")}
-    >
-      <span>{label}</span>
-
-      <span
-        className={[
-          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold",
-          active
-            ? "bg-white text-zinc-950 dark:bg-zinc-950 dark:text-white"
-            : "bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-200",
-        ].join(" ")}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
-
-/* =========================================================
-   NOTIFICATION ROW
-========================================================= */
-
-function NotificationRow({
-  item,
-  onMarkRead,
-}: {
-  item: CombinedItem;
-  onMarkRead: (key: string) => void;
-}) {
-  const unread = !item.read;
-
-  return (
-    <article
-      className={[
-        "min-w-0 overflow-hidden rounded-2xl border transition duration-200",
-        unread
-          ? "border-rose-200 bg-white shadow-sm hover:border-rose-300 hover:shadow-md dark:border-rose-500/20 dark:bg-zinc-950 dark:hover:border-rose-500/40"
-          : "border-zinc-200 bg-zinc-50/70 hover:bg-white dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]",
-      ].join(" ")}
-    >
-      {/* Main notification link */}
-      <Link
-        href={item.href}
-        onClick={() => onMarkRead(item.key)}
-        aria-label={`Open ${item.title}${unread ? ", unread notification" : ", read notification"}`}
-        className="block p-3 outline-none transition focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-500 sm:p-5"
-      >
-        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-          {/* Notification type icon */}
-          <div
-            className={[
-              "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition sm:h-11 sm:w-11 sm:rounded-2xl",
-              unread
-                ? "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400"
-                : "border-zinc-200 bg-zinc-100 text-zinc-400 dark:border-white/10 dark:bg-white/5 dark:text-zinc-500",
-            ].join(" ")}
-          >
-            <NotificationIcon
-              type={item.type}
-              className="h-4 w-4 sm:h-5 sm:w-5"
-            />
-          </div>
-
-          {/* Notification content */}
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-2">
-                  {unread && (
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full bg-rose-500 sm:h-2.5 sm:w-2.5"
-                      aria-label="Unread"
-                      title="Unread"
-                    />
-                  )}
-
-                  <h3
-                    title={item.title}
-                    className={[
-                      "min-w-0 truncate transition-all",
-                      unread
-                        ? "text-sm font-bold text-zinc-950 dark:text-white sm:text-base"
-                        : "text-xs font-medium text-zinc-500 dark:text-zinc-400 sm:text-sm",
-                    ].join(" ")}
-                  >
-                    {item.title}
-                  </h3>
-                </div>
-
-                {/* Message */}
-                <p
-                  className={[
-                    "mt-1.5 leading-6 transition-colors",
-                    unread
-                      ? "text-xs text-zinc-600 dark:text-zinc-300 sm:text-sm"
-                      : "text-[11px] text-zinc-400 dark:text-zinc-500 sm:text-xs",
-                  ].join(" ")}
-                >
-                  {item.message}
-                </p>
-              </div>
-
-              {/* Time and read state */}
-              <div className="flex shrink-0 flex-col items-end gap-2">
-                <span
-                  className={[
-                    "whitespace-nowrap text-[10px] font-semibold tabular-nums sm:text-xs",
-                    unread
-                      ? "text-zinc-700 dark:text-zinc-200"
-                      : "text-zinc-400 dark:text-zinc-500",
-                  ].join(" ")}
-                >
-                  {item.time}
-                </span>
-
-                {unread ? (
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white sm:h-6 sm:min-w-6 sm:text-[11px]">
-                    {item.count ?? 1}
-                  </span>
-                ) : (
-                  <span
-                    className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-zinc-500 dark:bg-white/10 dark:text-zinc-500"
-                    title="Read"
-                    aria-label="Read"
-                  >
-                    <NotificationIcon
-                      type="check"
-                      className="h-3 w-3"
-                    />
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Additional notification details */}
-            {item.details.length > 0 && (
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {item.details.map((detail) => (
-                  <div
-                    key={`${item.key}-${detail.label}`}
-                    className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-white/10 dark:bg-white/5"
-                  >
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                      {detail.label}
-                    </p>
-
-                    <p className="mt-1 break-words text-sm font-medium text-zinc-900 dark:text-zinc-200">
-                      {detail.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Label */}
-            {item.label && (
-              <div className="mt-3">
-                <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold text-zinc-600 dark:bg-white/10 dark:text-zinc-400">
-                  {item.label}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </Link>
-
-      {/* Attachment download */}
-      {item.attachmentUrl && (
-        <div className="border-t border-zinc-200/70 px-3 py-3 dark:border-white/10 sm:px-5">
-          <a
-            href={item.attachmentUrl}
-            download
-            onClick={() => onMarkRead(item.key)}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-white/15 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-white/10"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="h-4 w-4"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 3v10m0 0 3.5-3.5M12 13l-3.5-3.5M5 14.5V18a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18v-3.5"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-
-            {item.attachmentLabel || "Download attachment"}
-          </a>
-        </div>
-      )}
-    </article>
   );
 }
 
@@ -592,10 +602,6 @@ export function NotificationsSection({
     return initial;
   });
 
-  /*
-   * Keep a synchronous reference to read state.
-   * This ensures localStorage is updated before navigation occurs.
-   */
   const readKeysRef = useRef<Set<string>>(readKeys);
 
   /* Search and filters */
@@ -604,12 +610,12 @@ export function NotificationsSection({
   const [typeFilter, setTypeFilter] =
     useState<NotificationTypeFilter>("all");
 
-  /* Scroll behaviour */
+  /* Scroll controls */
   const [showControls, setShowControls] = useState(true);
   const [scrollY, setScrollY] = useState(0);
 
   /* =====================================================
-     LOAD SAVED READ STATUS
+     LOAD READ STATUS
   ===================================================== */
 
   useEffect(() => {
@@ -624,15 +630,11 @@ export function NotificationsSection({
     readKeysRef.current = next;
     setReadKeys(next);
 
-    /*
-     * Save merged state so notifications already marked
-     * as read by the server are retained as well.
-     */
     persistReadKeys(next);
   }, []);
 
   /* =====================================================
-     SYNCHRONIZE READ STATUS BETWEEN TABS
+     CROSS-TAB READ STATUS SYNCHRONIZATION
   ===================================================== */
 
   useEffect(() => {
@@ -661,7 +663,7 @@ export function NotificationsSection({
   }, []);
 
   /* =====================================================
-     MARK NOTIFICATION AS READ
+     MARK AS READ
   ===================================================== */
 
   const markRead = useCallback((key: string) => {
@@ -673,15 +675,9 @@ export function NotificationsSection({
 
     next.add(key);
 
-    /*
-     * Update ref and React state immediately.
-     */
     readKeysRef.current = next;
     setReadKeys(next);
 
-    /*
-     * Persist synchronously before navigation.
-     */
     persistReadKeys(next);
   }, []);
 
@@ -693,13 +689,15 @@ export function NotificationsSection({
     () =>
       combined.map((item) => ({
         ...item,
-        read: Boolean(readKeys.has(item.key) || item.read),
+        read: Boolean(
+          readKeys.has(item.key) || item.read
+        ),
       })),
     [combined, readKeys]
   );
 
   /* =====================================================
-     COUNTS
+     UNREAD COUNTS ONLY
   ===================================================== */
 
   const unreadCount = useMemo(
@@ -707,7 +705,11 @@ export function NotificationsSection({
     [items]
   );
 
-  const typeCounts = useMemo(() => {
+  /*
+   * Every category counter counts unread messages only.
+   * Read notifications never contribute to these numbers.
+   */
+  const unreadTypeCounts = useMemo(() => {
     const counts: Record<NotificationType, number> = {
       security: 0,
       grant: 0,
@@ -718,7 +720,9 @@ export function NotificationsSection({
     };
 
     for (const item of items) {
-      counts[item.type] += 1;
+      if (!item.read) {
+        counts[item.type] += 1;
+      }
     }
 
     return counts;
@@ -733,16 +737,12 @@ export function NotificationsSection({
 
     return items
       .filter((item) => {
-        if (typeFilter === "all") {
-          return true;
-        }
+        if (typeFilter === "all") return true;
 
         return item.type === typeFilter;
       })
       .filter((item) => {
-        if (!searchTerm) {
-          return true;
-        }
+        if (!searchTerm) return true;
 
         const searchableContent = [
           item.title,
@@ -751,7 +751,8 @@ export function NotificationsSection({
           item.label ?? "",
           item.type,
           ...item.details.map(
-            (detail) => `${detail.label} ${detail.value}`
+            (detail) =>
+              `${detail.label} ${detail.value}`
           ),
         ]
           .join(" ")
@@ -759,24 +760,25 @@ export function NotificationsSection({
 
         return searchableContent.includes(searchTerm);
       })
-      /*
-       * Unread notifications appear before read notifications.
-       */
-      .sort((a, b) => Number(a.read) - Number(b.read));
+      .sort(
+        (a, b) => Number(a.read) - Number(b.read)
+      );
   }, [items, query, typeFilter]);
 
   /* =====================================================
      FILTER SELECTION
   ===================================================== */
 
-  function handleTypeSelect(nextType: NotificationTypeFilter) {
+  function handleTypeSelect(
+    nextType: NotificationTypeFilter
+  ) {
     setTypeFilter((current) =>
       current === nextType ? "all" : nextType
     );
   }
 
   /* =====================================================
-     SCROLL-BASED HEADER AND CONTROL VISIBILITY
+     SCROLL BEHAVIOUR
   ===================================================== */
 
   useEffect(() => {
@@ -838,18 +840,22 @@ export function NotificationsSection({
   ===================================================== */
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-white">
-      <main className="mx-auto w-full max-w-7xl space-y-5 px-3 py-3 sm:space-y-6 sm:px-6 sm:py-5 lg:px-8">
+    <div className="min-h-screen w-full overflow-x-hidden bg-white text-zinc-950 dark:bg-zinc-950 dark:text-white">
 
-        {/* =================================================
-            STICKY HEADER
-        ================================================= */}
+      <main className="mx-auto w-full max-w-7xl px-0 sm:px-4 lg:px-8">
 
-        <header className="sticky top-0 z-50 -mx-3 border-b border-zinc-200/70 bg-zinc-50/95 px-3 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/95 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        {/* ================================================
+            HEADER
+        ================================================ */}
+
+        <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/95 px-4 py-4 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/95 sm:px-6">
+
           <div className="flex items-center justify-between gap-3">
+
             <div className="min-w-0">
+
               <h1
-                className="font-black tracking-tight text-zinc-950 transition-[font-size] duration-200 ease-out dark:text-white"
+                className="font-black tracking-tight text-zinc-950 transition-[font-size] duration-200 dark:text-white"
                 style={{
                   fontSize: `clamp(2rem, ${titleFontSize}px, 2.75rem)`,
                   lineHeight: 1.05,
@@ -859,11 +865,14 @@ export function NotificationsSection({
               </h1>
 
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 sm:text-sm">
-                Manage your notifications and account updates.
+                Your notifications and account updates.
               </p>
+
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 rounded-full bg-zinc-100 px-3 py-2 dark:bg-white/10">
+            {/* ONLY UNREAD COUNT */}
+            <div className="flex shrink-0 items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 dark:bg-emerald-500/10">
+
               <span
                 className={[
                   "h-2 w-2 rounded-full",
@@ -873,43 +882,49 @@ export function NotificationsSection({
                 ].join(" ")}
               />
 
-              <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200">
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                 {unreadCount} unread
               </span>
+
             </div>
+
           </div>
+
         </header>
 
-        {/* =================================================
+        {/* ================================================
             WELCOME NOTICE
-        ================================================= */}
+        ================================================ */}
 
         {welcomeNotice && (
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-800 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+          <div className="mx-3 mt-4 rounded-xl bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800 dark:bg-blue-500/10 dark:text-blue-200 sm:mx-6">
             {welcomeNotice}
           </div>
         )}
 
-        {/* =================================================
+        {/* ================================================
             FILTERS AND SEARCH
-        ================================================= */}
+        ================================================ */}
 
         <div
           className={[
-            "space-y-4 overflow-hidden transition-all duration-300 ease-in-out",
+            "space-y-4 overflow-hidden border-b border-zinc-200 px-4 py-4 transition-all duration-300 dark:border-white/10 sm:px-6",
             showControls
               ? "max-h-80 opacity-100"
-              : "pointer-events-none max-h-0 opacity-0",
+              : "pointer-events-none max-h-0 border-transparent py-0 opacity-0",
           ].join(" ")}
         >
-          {/* Notification type filters */}
-          <div className="overflow-x-auto pb-2">
+
+          {/* Category filters */}
+          <div className="overflow-x-auto pb-1">
+
             <div className="flex w-max items-center gap-2">
+
               <TypeChip
                 active={typeFilter === "all"}
                 onClick={() => handleTypeSelect("all")}
                 label="All"
-                count={items.length}
+                count={unreadCount}
               />
 
               {NOTIFICATION_TYPES.map((type) => (
@@ -918,20 +933,25 @@ export function NotificationsSection({
                   active={typeFilter === type}
                   onClick={() => handleTypeSelect(type)}
                   label={type}
-                  count={typeCounts[type]}
+                  count={unreadTypeCounts[type]}
                 />
               ))}
+
             </div>
+
           </div>
 
           {/* Search */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
             <label className="relative block w-full sm:max-w-lg">
+
               <span className="sr-only">
                 Search notifications
               </span>
 
               <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-zinc-400">
+
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -946,6 +966,7 @@ export function NotificationsSection({
                     strokeLinejoin="round"
                   />
                 </svg>
+
               </span>
 
               <input
@@ -954,8 +975,9 @@ export function NotificationsSection({
                   setQuery(event.target.value)
                 }
                 placeholder="Search notifications..."
-                className="w-full rounded-full border border-zinc-300 bg-white py-3 pl-11 pr-4 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
+                className="w-full rounded-full border border-zinc-200 bg-zinc-50 py-3 pl-11 pr-4 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-emerald-500 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950"
               />
+
             </label>
 
             {(query || typeFilter !== "all") && (
@@ -965,32 +987,42 @@ export function NotificationsSection({
                   setQuery("");
                   setTypeFilter("all");
                 }}
-                className="shrink-0 self-start rounded-full px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10 sm:self-auto"
+                className="self-start rounded-full px-3 py-2 text-xs font-semibold text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white sm:self-auto"
               >
                 Clear filters
               </button>
             )}
+
           </div>
+
         </div>
 
-        {/* =================================================
+        {/* ================================================
             NOTIFICATION LIST
-        ================================================= */}
+            FLAT WHATSAPP-STYLE SEPARATORS
+        ================================================ */}
 
         {visibleItems.length > 0 ? (
+
           <section
             aria-label="Notifications"
-            className="space-y-3 sm:space-y-4"
+            className="divide-y divide-zinc-200 dark:divide-white/10"
           >
+
             {visibleItems.map((item) => (
+
               <NotificationRow
                 key={item.key}
                 item={item}
                 onMarkRead={markRead}
               />
+
             ))}
+
           </section>
+
         ) : (
+
           <EmptyState
             title={
               query || typeFilter !== "all"
@@ -999,30 +1031,46 @@ export function NotificationsSection({
             }
             message={
               query || typeFilter !== "all"
-                ? "Try a different search term or change your notification filters."
+                ? "Try a different search term or notification category."
                 : "New alerts, account updates, transfer receipts and announcements will appear here."
             }
           />
+
         )}
 
-        {/* =================================================
-            FOOTER SUMMARY
-        ================================================= */}
+        {/* ================================================
+            FOOTER
+        ================================================ */}
 
-        {items.length > 0 && (
-          <footer className="border-t border-zinc-200/70 pt-5 dark:border-white/10">
-            <div className="flex flex-col gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
-              <span>
-                Showing {visibleItems.length} of {items.length} notifications
-              </span>
+        <footer className="border-t border-zinc-200 px-4 py-5 dark:border-white/10 sm:px-6">
 
-              <span>
-                {items.length - unreadCount} read · {unreadCount} unread
+          <div className="flex items-center justify-between gap-3">
+
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              {unreadCount > 0
+                ? `${unreadCount} unread notifications`
+                : "You're all caught up"}
+            </span>
+
+            {unreadCount === 0 && items.length > 0 && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+
+                <NotificationIcon
+                  type="check"
+                  className="h-4 w-4"
+                />
+
+                All read
+
               </span>
-            </div>
-          </footer>
-        )}
+            )}
+
+          </div>
+
+        </footer>
+
       </main>
+
     </div>
   );
 }
